@@ -296,7 +296,7 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                 // Store the new composition
                 if (!roles[guildId][compName]) {
                     roles[guildId][compName] = parties;
-                    fs.writeFileSync('roles.json', JSON.stringify(roles, null, 2));
+                    fs.writeFileSync(rolesPath, JSON.stringify(roles, null, 2));
                     await interaction.reply({ content: `Composition "${compName}" created successfully!`, ephemeral: true });
                 } else {
                     await interaction.reply({ content: `Composition "${compName}" already exists.`, ephemeral: true });

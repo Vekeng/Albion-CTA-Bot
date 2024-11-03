@@ -160,7 +160,7 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                 for (const party in roles[guildId][compName]) {
                     let partyRoles = '';
                     for (const [id, roleName] of Object.entries(roles[guildId][compName][party])) {
-                        partyRoles += `${id}. ${roleName} - Available\n`;
+                        partyRoles += `${id}. ${roleName}`.padEnd(20,' ') + ` - Available\n`;
                     }
                     embed.addFields({ name: `⚔️ ${party}`, value: partyRoles });
                 };

@@ -153,9 +153,8 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
 
                 const embed = new EmbedBuilder()
                     .setTitle(eventName)
-                    .setDescription(`Date: **${date}**\nTime (UTC): **${timeUTC}**`)
+                    .setDescription(`📅Date: **${date}**\n⏰Time (UTC): **${timeUTC}**`)
                     .setColor('#0099ff');
-
                 // Create parties
                 for (const party in roles[guildId][compName]) {
                     let partyRoles = '';

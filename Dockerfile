@@ -5,13 +5,12 @@ FROM node:18
 WORKDIR /usr/src/app
 
 # Copy package.json and package-lock.json to install dependencies
-COPY package*.json ./
+COPY . ./
 
 # Install the bot's dependencies
 RUN npm install
 
 # Copy the rest of the bot's code into the container
-COPY bot.js .env ./
 
 # Expose any ports if necessary (not needed for a Discord bot but included for reference)
 # EXPOSE 3000

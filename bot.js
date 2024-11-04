@@ -305,7 +305,7 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                 const rolesString = options.getString('roles');
                 const forceParam = options.getString('force')
 
-                const rolesArray = rolesString.split(',').map(role => role.trim());
+                const rolesArray = rolesString.split(';').map(role => role.trim());
                 const parties = {};
 
                 // Split roles into parties of maximum 20
@@ -336,7 +336,7 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
             **/newcta**: Create a new event post with details like event name, date, time, and comp.\n- 
             **/join**: Join a specified role for the event by providing the role ID. Command works only in thread created for event.\n- 
             **/leave**: Leave the current role you are assigned to. Command works only in thread created for event.\n- 
-            **/newcomp**: Create a new composition with a list of roles. If list includes more than 20 roles, they will be split in two or more parties. If you need to update existing comp, use optional force parameter\n- 
+            **/newcomp**: Create a new composition with a list of roles separated by semicolons \`;\`. If list includes more than 20 roles, they will be split in two or more parties. Use force to update existing comp. \n- 
             **/listcomps**: List all compositions available or view roles in a specific composition.`;
 		    await interaction.reply({content: response, ephemeral: true});
 	    }

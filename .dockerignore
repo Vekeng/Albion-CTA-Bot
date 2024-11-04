@@ -1,5 +1,6 @@
 Dockerfile
 .dockerignore
+.env.example
 .git/
 .gitignore
 README.md

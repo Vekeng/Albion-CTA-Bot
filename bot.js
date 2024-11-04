@@ -160,6 +160,7 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                 const embed = new EmbedBuilder()
                     .setTitle(eventName)
                     .setDescription(`📅Date: **${date}**\n⏰Time (UTC): **${timeUTC}**`)
+                    .setThumbnail('https://i.ibb.co/YyFD5qx/A-256x265-picture-depicting-a-call-to-arms-for-the-fantasy-online-Pv-P-game-Albion-Online-with-simpl.jpg')
                     .setColor('#0099ff');
                 // Create parties
                 for (const party in roles[guildId][compName]) {
@@ -224,6 +225,7 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                 // Recreate the embed to show the updated participant status
                 const embed = new EmbedBuilder()
                     .setTitle(eventDetails.eventName)
+                    .setThumbnail('https://i.ibb.co/YyFD5qx/A-256x265-picture-depicting-a-call-to-arms-for-the-fantasy-online-Pv-P-game-Albion-Online-with-simpl.jpg')
                     .setDescription(`Date: **${eventDetails.date}**\nTime (UTC): **${eventDetails.timeUTC}**`)
                     .setColor('#0099ff');
 
@@ -264,6 +266,7 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                     // Recreate the embed to show the updated participant status
                     const embed = new EmbedBuilder()
                         .setTitle(eventDetails.eventName)
+                        .setThumbnail('https://i.ibb.co/YyFD5qx/A-256x265-picture-depicting-a-call-to-arms-for-the-fantasy-online-Pv-P-game-Albion-Online-with-simpl.jpg')
                         .setDescription(`Date: **${eventDetails.date}**\nTime (UTC): **${eventDetails.timeUTC}**`)
                         .setColor('#0099ff');
 

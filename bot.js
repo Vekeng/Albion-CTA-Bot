@@ -154,7 +154,6 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                 const embed = new EmbedBuilder()
                     .setTitle(eventName)
                     .setDescription(`📅Date: **${date}**\n⏰Time (UTC): **${timeUTC}**`)
-                    .setImage("https://i.ibb.co/YyFD5qx/A-256x265-picture-depicting-a-call-to-arms-for-the-fantasy-online-Pv-P-game-Albion-Online-with-simpl.jpg")
                     .setColor('#0099ff');
                 // Create parties
                 for (const party in roles[guildId][compName]) {

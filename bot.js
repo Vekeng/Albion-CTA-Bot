@@ -153,6 +153,10 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                 const timeUTC = options.getString('time');
                 const compName = options.getString('comp');
 
+                if (interaction.channel.isThread()) {
+                    return await interaction.reply({ content: 'This command can\'t be used threads.', ephemeral: true });
+                }
+
                 if (!roles[guildId][compName]) {
                     return await interaction.reply({ content: 'Invalid composition name provided.', ephemeral: true });
                 }

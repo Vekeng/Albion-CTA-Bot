@@ -254,6 +254,9 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
 
             // Handle the /leave command
             if (commandName === 'leave') {
+                if (!interaction.channel.isThread()) {
+                    return await interaction.reply({ content: 'This command can only be used in a sign-up thread.', ephemeral: true });
+                }
                 const eventMessage = await interaction.channel.parent.messages.fetch(interaction.channel.id);
                 const eventDetails = eventData[eventMessage.id];
 

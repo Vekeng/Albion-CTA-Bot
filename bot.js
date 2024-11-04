@@ -159,7 +159,7 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                 for (const party in roles[guildId][compName]) {
                     let partyRoles = '';
                     for (const [id, roleName] of Object.entries(roles[guildId][compName][party])) {
-                        partyRoles += `🟩 ${id}. ${roleName}\n`;
+                        partyRoles += `\`🟩\` ${id}. ${roleName}\n`;
                     }
                     embed.addFields({ name: `⚔️ ${party}`, value: partyRoles, inline: true });
                 };
@@ -228,10 +228,10 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                         const participantId = eventDetails.participants[id];
                         const status = participantId ? `<@${participantId}>` : 'Available'; // Format as mention
                         if (status === 'Available') {
-                            partyRoles += `🟩 ${id}. ${roleName}\n`;
+                            partyRoles += `\`🟩\` ${id}. ${roleName}\n`;
                         }
                         else {
-                            partyRoles += `✅ ${id}. ${roleName} - ${status}\n`;
+                            partyRoles += `\`✅\` ${id}. ${roleName} - ${status}\n`;
                         }
                     }
                     embed.addFields({ name: `⚔️ ${party}`, value: partyRoles, inline: true });
@@ -268,10 +268,10 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                             const participantId = eventDetails.participants[id];
                             const status = participantId ? `<@${participantId}>` : 'Available'; // Format as mention
                             if (status === 'Available') {
-                                partyRoles += `🟩 ${id}. ${roleName}\n`;
+                                partyRoles += `\`🟩\` ${id}. ${roleName}\n`;
                             }
                             else {
-                                partyRoles += `✅ ${id}. ${roleName} - ${status}\n`;
+                                partyRoles += `\`✅\` ${id}. ${roleName} - ${status}\n`;
                             }
                         }
                         embed.addFields({ name: `⚔️ ${party}`, value: partyRoles, inline: true });

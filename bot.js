@@ -236,7 +236,7 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                     }
                     embed.addFields({ name: `⚔️ ${party}`, value: partyRoles, inline: true });
                 }
-
+                embed.addFields({ name: `Sign up in thread!`, value: `/join RoleID - to get the role\n /leave - to free the role` });
                 // Update the original message
                 await eventMessage.edit({ embeds: [embed] });
                 await interaction.reply({ content: `You have successfully joined role ${roleId}.`, ephemeral: true });
@@ -276,6 +276,7 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                         }
                         embed.addFields({ name: `⚔️ ${party}`, value: partyRoles, inline: true });
                     }
+                    embed.addFields({ name: `Sign up in thread!`, value: `/join RoleID - to get the role\n /leave - to free the role` });
 
                     // Update the original message
                     await eventMessage.edit({ embeds: [embed] });

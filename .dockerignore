@@ -2,5 +2,4 @@ Dockerfile
 .dockerignore
 .git/
 .gitignore
-json/
 README.md

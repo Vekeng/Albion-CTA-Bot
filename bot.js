@@ -332,9 +332,7 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
             }
 	    // Handle the /ctabothelp command
 	    if (commandName === 'ctabothelp') {
-		    response = `**CTABot** is a Discord bot designed for managing Guild events in Albion Online. 
-            It helps players create and manage events and track participants. With CTABot, you can easily 
-            organize your CTAs, Outposts runs and other content.\n**Available Commands**\n- 
+		    response = `**CTABot** is a Discord bot designed for managing Guild events in Albion Online. It helps players create and manage events and track participants. With CTABot, you can easily organize your CTAs, Outposts runs and other content.\n**Available Commands**\n- 
             **/newcta**: Create a new event post with details like event name, date, time, and comp.\n- 
             **/join**: Join a specified role for the event by providing the role ID. Command works only in thread created for event.\n- 
             **/leave**: Leave the current role you are assigned to. Command works only in thread created for event.\n- 

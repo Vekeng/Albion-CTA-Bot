@@ -115,7 +115,7 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
         });
 
         // Load roles from roles.json
-        const rolesPath = process.env.ROLES;
+        const rolesPath = 'json/roles.json';
         let roles = {};
         if (fs.existsSync(rolesPath)) {
             roles = JSON.parse(fs.readFileSync(rolesPath, 'utf-8'));
@@ -124,7 +124,7 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
         let eventData = {};
 
         // Load persistent data
-	const botDataPath = process.env.DATA;
+	const botDataPath = 'json/botData.json';
         if (fs.existsSync(botDataPath)) {
             eventData = JSON.parse(fs.readFileSync(botDataPath, 'utf-8'));
         }

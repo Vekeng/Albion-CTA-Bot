@@ -231,7 +231,7 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                             partyRoles += `\`🟩\` ${id}. ${roleName}\n`;
                         }
                         else {
-                            partyRoles += `\`✅\` ${id}. ${roleName} - ${status}\n`;
+                            partyRoles += `\`✔️\` ${id}. ${roleName} - ${status}\n`;
                         }
                     }
                     embed.addFields({ name: `⚔️ ${party}`, value: partyRoles, inline: true });
@@ -271,7 +271,7 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                                 partyRoles += `\`🟩\` ${id}. ${roleName}\n`;
                             }
                             else {
-                                partyRoles += `\`✅\` ${id}. ${roleName} - ${status}\n`;
+                                partyRoles += `\`✔️\` ${id}. ${roleName} - ${status}\n`;
                             }
                         }
                         embed.addFields({ name: `⚔️ ${party}`, value: partyRoles, inline: true });

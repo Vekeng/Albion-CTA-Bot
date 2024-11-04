@@ -68,7 +68,7 @@ const commands = [
             {
                 name: 'roles',
                 type: 3, // STRING
-                description: 'List of roles (comma-separated)',
+                description: 'List of roles (semicolon-separated, e.g. Role1; Role2; Role3)',
                 required: true,
             },
             {

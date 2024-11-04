@@ -71,6 +71,12 @@ const commands = [
                 description: 'List of roles (comma-separated)',
                 required: true,
             },
+            {
+                name: 'force', 
+                type: 3, // STRING
+                description: 'Force overwrite if comp exists', 
+                required: false,
+            },
         ],
     },
     {
@@ -290,6 +296,7 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
             if (commandName === 'newcomp') {
                 const compName = options.getString('compname');
                 const rolesString = options.getString('roles');
+                const forceParam = options.getString('force')
 
                 const rolesArray = rolesString.split(',').map(role => role.trim());
                 const parties = {};
@@ -304,10 +311,14 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                 }
 
                 // Store the new composition
-                if (!roles[guildId][compName]) {
+                if (!roles[guildId][compName] || forceParam === 'force') {
                     roles[guildId][compName] = parties;
                     fs.writeFileSync(rolesPath, JSON.stringify(roles, null, 2));
-                    await interaction.reply({ content: `Composition "${compName}" created successfully!`, ephemeral: true });
+                    if (forceParam === 'force') {
+                        await interaction.reply({ content: `Composition "${compName}" updated successfully!`, ephemeral: true });
+                    } else {
+                        await interaction.reply({ content: `Composition "${compName}" created successfully!`, ephemeral: true });
+                    }
                 } else {
                     await interaction.reply({ content: `Composition "${compName}" already exists.`, ephemeral: true });
                 }

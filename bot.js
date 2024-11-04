@@ -325,9 +325,9 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                     if (roles[guildId][compName]) {
                         response += `Roles in composition "${compName}":\n`;
                         for (const party in roles[guildId][compName]) {
-                            response += `⚔️ ${party}:\n`;
+                            //response += `⚔️ ${party}:\n`;
                             for (const [id, roleName] of Object.entries(roles[guildId][compName][party])) {
-                                response += `${id}. ${roleName}\n`;
+                                response += `${roleName}\n`;
                             }
                         }
                     } else {

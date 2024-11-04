@@ -304,7 +304,9 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                 const compName = options.getString('compname');
                 const rolesString = options.getString('roles');
                 const forceParam = options.getString('force')
-
+                if (rolesString.length > 1600) {
+                    await interaction.reply({ content: `Composition shouldn't be longer than 1600 symbols. If you really need it, consider splitting list in two or more.`, ephemeral: true });
+                }
                 const rolesArray = rolesString.split(';').map(role => role.trim());
                 const parties = {};
 

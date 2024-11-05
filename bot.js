@@ -136,9 +136,11 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
         client.on(Events.InteractionCreate, async (interaction) => {
             if (!interaction.isCommand()) return;
 
-            console.log(`Received command: ${interaction.commandName} ${interaction.options} from ${interaction.user.tag} on server ${interaction.guildId}`);
-
             const { commandName, options } = interaction;
+
+            console.log(`Received command: ${interaction.commandName} ${interaction.options} from ${interaction.user.tag} on server ${interaction.guildId}`);
+            console.log('Options: ', options.data.map(option => ({ name: option.name, value: option.value })));
+
             const guildId = interaction.guildId; // Get the server ID
 
             // Ensure roles are organized by guild

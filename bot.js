@@ -84,6 +84,10 @@ const commands = [
 	    description: 'How to use CTA BOT'
     },
     {
+        name: 'ctaping', 
+        description: 'Ping participants'
+    },
+    {
         name: 'listcomps',
         description: 'List all compositions or roles from a specific composition.',
         options: [
@@ -185,6 +189,22 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                 fs.writeFileSync(botDataPath, JSON.stringify(eventData, null, 2));
 
                 await interaction.reply({ content: `Event created! Sign up in ${thread}.`, ephemeral: true });
+            }
+
+            // Handle the /ctaping command
+            if (commandName === 'ctaping') {
+                if (!interaction.channel.isThread()) {
+                    return await interaction.reply({ content: 'This command can only be used in a sign-up thread.', ephemeral: true });
+                }
+
+                const eventMessage = await interaction.channel.parent.messages.fetch(interaction.channel.id);
+                const eventDetails = eventData[eventMessage.id];
+
+                response = '';
+                for (const participantId in eventDetails) {
+                    response += `<@${eventDetails.participants[id]}>`; 
+                }
+            return await interaction.reply({ content: response});
             }
 
             // Handle the /join command

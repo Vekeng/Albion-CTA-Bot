@@ -4,3 +4,5 @@ Dockerfile
 .git/
 .gitignore
 README.md
+node_modules
+package-lock.json

@@ -201,9 +201,9 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                 const eventDetails = eventData[eventMessage.id];
 
                 response = '';
-                for (const participantId in eventDetails) {
-                    response += `<@${eventDetails.participants[id]}>`; 
-                }
+                Object.entries(eventDetails.participants).forEach(([key, value]) => {
+                    response += `<@${value}>`;
+                });
             return await interaction.reply({ content: response});
             }
 

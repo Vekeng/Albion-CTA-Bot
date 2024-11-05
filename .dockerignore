@@ -4,5 +4,8 @@ Dockerfile
 .git/
 .gitignore
 README.md
+
+# Dev specific!
 node_modules
 package-lock.json
+json

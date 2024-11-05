@@ -401,4 +401,3 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
         console.error(error);
     }
 })();
-

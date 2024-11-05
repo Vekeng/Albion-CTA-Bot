@@ -1,3 +1,6 @@
 .env
+
+# Dev specific! 
 node_modules
 package-lock.json
+json

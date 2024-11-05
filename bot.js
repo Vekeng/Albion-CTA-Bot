@@ -204,7 +204,12 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                 Object.entries(eventDetails.participants).forEach(([key, value]) => {
                     response += `<@${value}>`;
                 });
-            return await interaction.reply({ content: response});
+                if (response.length > 0) {
+                    return await interaction.reply({ content: response});
+                } else {
+                    return await interaction.reply({ content: 'No one signe up, there is no one to ping 😢'});
+                }
+            
             }
 
             // Handle the /join command

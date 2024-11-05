@@ -139,7 +139,6 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
             const { commandName, options } = interaction;
 
             console.log(`Received command: ${interaction.commandName}`, '\nOptions: ', options.data.map(option => ({ name: option.name, value: option.value })), `\nUser: ${interaction.user.tag}\nChannel: ${interaction.channel.name}\nServer: ${interaction.guild.name}`);
-            console.log();
 
             const guildId = interaction.guildId; // Get the server ID
 

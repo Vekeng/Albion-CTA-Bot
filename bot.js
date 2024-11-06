@@ -103,50 +103,6 @@ const commands = [
     },
 ];
 
-async function joinCTARole(userId, roles, guildId, interaction, botDataPath, eventData) {
-    const [action, messageId, compName, party] = interaction.customId.split('|');
-    const [roleId, roleName] = interaction.values[0].split('|');
-    const eventMessage = await interaction.channel.messages.fetch(messageId);
-    const eventDetails = eventData[eventMessage.id];
-    console.log('Function: ', roleId);
-    const currentRoleId = Object.keys(eventDetails.participants).find(id => eventDetails.participants[id] === userId);
-    if (currentRoleId) {
-        // Notify user if trying to join the same role
-        if (currentRoleId === roleId.toString()) {
-            return await interaction.reply({ content: 'You are already assigned to this role.', ephemeral: true });
-        }
-        // Free up the previous role
-        delete eventDetails.participants[currentRoleId];
-    }
-
-    // Check if the requested role is available
-    if (eventDetails.participants[roleId]) {
-        return await interaction.reply({ content: 'This role is already taken by another user.', ephemeral: true });
-    }
-
-    // Check if the role ID exists in the composition
-    const roleExists = Object.values(roles[guildId][eventDetails.compName]).some(party => party[roleId]);
-    if (!roleExists) {
-        return await interaction.reply({ content: 'This role ID does not exist in the composition.', ephemeral: true });
-    }
-
-    // Assign the user to the new role
-    eventDetails.participants[roleId] = userId;
-    fs.writeFileSync(botDataPath, JSON.stringify(eventData, null, 2));
-
-    // Rebuild the event post
-    const embed = buildEventMessage(eventDetails, roles, guildId, eventMessage.id)
-
-    // Update the original message
-    await eventMessage.edit({ embeds: [embed] });                    
-    // Inform about teh role change
-    await interaction.update({
-        content: `Your role is: ${roleId}. ${roleName}`,
-        components: [],
-        ephemeral: true
-    });
-}
-
 function createPartyOptions() {
   const options = [];
   for (const party in partyData) {
@@ -208,7 +164,7 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
             roles = JSON.parse(fs.readFileSync(rolesPath, 'utf-8'));
         }
 
-        //let eventData = {};
+        let eventData = {};
 
         // Load persistent data
 	    const botDataPath = 'json/botData.json';
@@ -224,24 +180,6 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
             const guildId = interaction.guildId; // Get the server ID
             const userId = interaction.user.id; // Get the User ID
             if (interaction.isButton()){
-                // Handle Ping button
-                if (interaction.customId.startsWith('ctaping')) {
-                    console.log(interaction.customId);
-                    const [action, messageId] = interaction.customId.split('|');
-                    const eventMessage = await interaction.channel.messages.fetch(messageId);
-                    const eventDetails = eventData[eventMessage.id];
-                    const response = '';
-                    const attention = 'Attention! 🔔 ';
-                    Object.entries(eventDetails.participants).forEach(([key, value]) => {
-                        response += `<@${value}> `;
-                    });
-                    if (response.length > 0) {
-                        response = attention + response;
-                        return await interaction.reply({ content: response});
-                    } else {
-                        return await interaction.reply({ content: 'No one signed up, there is no one to ping 😢', ephemeral: true});
-                    }
-                }
                 // Handle Leave Button
                 if (interaction.customId.startsWith('leaveCTA')) {
                     const [action, messageId] = interaction.customId.split('|');
@@ -271,9 +209,6 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                             value: party, // Value to be returned on selection
                           });
                     }
-                    if (Object.keys(options).length === 1) {
-                        console.log(Object.keys(options).length);
-                    }
                     const selectMenu = new StringSelectMenuBuilder()
                         .setCustomId(`joinCTAParty|${messageId}|${compName}`)
                         .setPlaceholder('Select a party')
@@ -291,16 +226,12 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
             }
             if (interaction.isStringSelectMenu()) {
                 if (interaction.customId.startsWith('joinCTARole')) {
-                    
-                    joinCTARole(userId, roles, guildId, interaction, botDataPath, eventData);
-                    
-                    // Check if the user already has a role
-                    /*
-
                     const [action, messageId, compName, party] = interaction.customId.split('|');
                     const [roleId, roleName] = interaction.values[0].split('|');
                     const eventMessage = await interaction.channel.messages.fetch(messageId);
                     const eventDetails = eventData[eventMessage.id];
+
+                    // Check if the user already has a role
                     const currentRoleId = Object.keys(eventDetails.participants).find(id => eventDetails.participants[id] === userId);
 
                     if (currentRoleId) {
@@ -338,7 +269,6 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                         components: [],
                         ephemeral: true
                     });
-                    */
                 }
                 if (interaction.customId.startsWith('joinCTAParty')) {
                     const [action, messageId, compName] = interaction.customId.split('|');
@@ -384,7 +314,7 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
             // Handle /ctabot subcommands
             if (commandName === 'ctabot') {
                 const subCommand = interaction.options.getSubcommand();
-                if (subCommand === 'cancelcta') {
+                if (subCommand === 'cancelevent') {
                     const messageId = options.getString('id');
                     const eventMessage = await interaction.channel.messages.fetch(messageId);
                     console.log("Message: ", eventMessage, "Event: ", eventData);
@@ -430,14 +360,8 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                         .setCustomId(`leaveCTA|${eventMessage.id}`)
                         .setLabel('Leave')
                         .setStyle(ButtonStyle.Danger);
-
-                    const pingButton = new ButtonBuilder()
-                        .setCustomId(`ctaping|${eventMessage.id}`)
-                        .setLabel('Ping')
-                        .setEmoji('⚔️')
-                        .setStyle(ButtonStyle.Danger);
     
-                    const actionRow = new ActionRowBuilder().addComponents(joinButton, leaveButton, pingButton);
+                    const actionRow = new ActionRowBuilder().addComponents(joinButton, leaveButton);
                     embed.setFooter({text: `Event ID: ${eventMessage.id}`});
                     await interaction.editReply({
                         embeds: [embed],
@@ -446,7 +370,26 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                     eventData[eventMessage.id] = { eventName, userId, date, timeUTC, compName, participants: {} };
                     fs.writeFileSync(botDataPath, JSON.stringify(eventData, null, 2));                
                 }
-                // Handle the /ctabot newcomp command
+                // Handle the /ctaping command
+                if (subCommand === 'ctaping') {
+                    if (!interaction.channel.isThread()) {
+                        return await interaction.reply({ content: 'This command can only be used in a sign-up thread.', ephemeral: true });
+                    }
+
+                    const eventMessage = await interaction.channel.parent.messages.fetch(interaction.channel.id);
+                    const eventDetails = eventData[eventMessage.id];
+
+                    response = '';
+                    Object.entries(eventDetails.participants).forEach(([key, value]) => {
+                        response += `<@${value}>`;
+                    });
+                    if (response.length > 0) {
+                        return await interaction.reply({ content: response});
+                    } else {
+                        return await interaction.reply({ content: 'No one signe up, there is no one to ping 😢'});
+                    }
+                
+                }
                 if (subCommand === 'newcomp') {
                     const compName = options.getString('compname');
                     const rolesString = options.getString('comproles');

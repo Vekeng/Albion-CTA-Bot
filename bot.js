@@ -103,48 +103,21 @@ const commands = [
     },
 ];
 
-async function joinCTARole(userId, roles, guildId, interaction, botDataPath, eventData) {
-    const [action, messageId, compName, party] = interaction.customId.split('|');
-    const [roleId, roleName] = interaction.values[0].split('|');
-    const eventMessage = await interaction.channel.messages.fetch(messageId);
-    const eventDetails = eventData[eventMessage.id];
-    console.log('Function: ', roleId);
-    const currentRoleId = Object.keys(eventDetails.participants).find(id => eventDetails.participants[id] === userId);
-    if (currentRoleId) {
-        // Notify user if trying to join the same role
-        if (currentRoleId === roleId.toString()) {
-            return await interaction.reply({ content: 'You are already assigned to this role.', ephemeral: true });
+async function getMessage(interaction, messageId) {
+    try {
+        // Try to fetch the message by its ID
+        const message = await interaction.channel.messages.fetch(messageId);
+        console.log("Func: ", message);
+        return message;  // Return message
+    } catch (error) {
+        if (error.code === 10008) {  // Unknown Message error code
+            console.log("Message does not exist.");
+            return null;  // Return null
+        } else {
+            console.error("An error occurred:", error);
+            throw error;  // Some other error occurred
         }
-        // Free up the previous role
-        delete eventDetails.participants[currentRoleId];
     }
-
-    // Check if the requested role is available
-    if (eventDetails.participants[roleId]) {
-        return await interaction.reply({ content: 'This role is already taken by another user.', ephemeral: true });
-    }
-
-    // Check if the role ID exists in the composition
-    const roleExists = Object.values(roles[guildId][eventDetails.compName]).some(party => party[roleId]);
-    if (!roleExists) {
-        return await interaction.reply({ content: 'This role ID does not exist in the composition.', ephemeral: true });
-    }
-
-    // Assign the user to the new role
-    eventDetails.participants[roleId] = userId;
-    fs.writeFileSync(botDataPath, JSON.stringify(eventData, null, 2));
-
-    // Rebuild the event post
-    const embed = buildEventMessage(eventDetails, roles, guildId, eventMessage.id)
-
-    // Update the original message
-    await eventMessage.edit({ embeds: [embed] });                    
-    // Inform about teh role change
-    await interaction.update({
-        content: `Your role is: ${roleId}. ${roleName}`,
-        components: [],
-        ephemeral: true
-    });
 }
 
 function createPartyOptions() {
@@ -159,7 +132,6 @@ function createPartyOptions() {
 }
 
 function buildEventMessage(eventDetails, roles, guildId, eventId) {
-    console.log("buildEventMessage ", eventDetails, "\n", roles);
     const embed = new EmbedBuilder()
         .setTitle(eventDetails.eventName)
         .setDescription(`Date: **${eventDetails.date}**\nTime (UTC): **${eventDetails.timeUTC}**`)
@@ -226,9 +198,11 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
             if (interaction.isButton()){
                 // Handle Ping button
                 if (interaction.customId.startsWith('ctaping')) {
-                    console.log(interaction.customId);
                     const [action, messageId] = interaction.customId.split('|');
-                    const eventMessage = await interaction.channel.messages.fetch(messageId);
+                    const eventMessage = await getMessage(interaction, messageId); 
+                    if (!eventMessage) {
+                        return await interaction.reply({ content: 'Event no longer exists', ephemeral: true }); 
+                    } 
                     const eventDetails = eventData[eventMessage.id];
                     const response = '';
                     const attention = 'Attention! 🔔 ';
@@ -245,10 +219,11 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                 // Handle Leave Button
                 if (interaction.customId.startsWith('leaveCTA')) {
                     const [action, messageId] = interaction.customId.split('|');
-                    const eventMessage = await interaction.channel.messages.fetch(messageId);
-                    console.log(eventMessage);
+                    const eventMessage = await getMessage(interaction, messageId); 
+                    if (!eventMessage) {
+                        return await interaction.reply({ content: 'Event no longer exists', ephemeral: true }); 
+                    } 
                     const eventDetails = eventData[eventMessage.id];
-                    console.log(eventDetails);
                     const roleToFree = Object.keys(eventDetails.participants).find(role => eventDetails.participants[role] === userId);
 
                     if (roleToFree) {
@@ -263,7 +238,6 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                 // Handle Join Button 
                 if (interaction.customId.startsWith('joinCTA')) {
                     const [action, messageId, compName] = interaction.customId.split('|');
-                    console.log(action, messageId, compName);
                     const options = [];
                     for (const party in roles[guildId][compName]) {
                         options.push({
@@ -272,8 +246,35 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                           });
                     }
                     if (Object.keys(options).length === 1) {
-                        console.log(Object.keys(options).length);
+                        const eventMessage = await getMessage(interaction, messageId); 
+                        if (!eventMessage) {
+                            return await interaction.update({ content: 'Event no longer exists', ephemeral: true }); 
+                        } 
+                        const eventDetails = eventData[eventMessage.id];
+                        const options = [];
+                        party = 'Party 1';
+                        for (const [roleId,roleName] of Object.entries(roles[guildId][compName][party])) {
+                            if (!eventDetails.participants[roleId]) {
+                                options.push({
+                                    label: `${roleId}. ${roleName}`, // Display name
+                                    value: `${roleId}|${roleName}` // Value to be returned on selection
+                                });
+                            }
+                        }
+                        const selectMenu = new StringSelectMenuBuilder()
+                            .setCustomId(`joinCTARole|${messageId}|${compName}|${party}`)
+                            .setPlaceholder(`Select a role`)
+                            .setOptions(options);
+                    
+                        const row = new ActionRowBuilder().addComponents(selectMenu);
+                    
+                        return await interaction.reply({
+                            content: `Picked ${party}`,
+                            components: [row],
+                            ephemeral: true
+                        });
                     }
+//                    }
                     const selectMenu = new StringSelectMenuBuilder()
                         .setCustomId(`joinCTAParty|${messageId}|${compName}`)
                         .setPlaceholder('Select a party')
@@ -292,14 +293,17 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
             if (interaction.isStringSelectMenu()) {
                 if (interaction.customId.startsWith('joinCTARole')) {
                     
-                    joinCTARole(userId, roles, guildId, interaction, botDataPath, eventData);
+                    //joinCTARole(userId, roles, guildId, interaction, botDataPath, eventData);
                     
                     // Check if the user already has a role
-                    /*
+                    
 
                     const [action, messageId, compName, party] = interaction.customId.split('|');
                     const [roleId, roleName] = interaction.values[0].split('|');
-                    const eventMessage = await interaction.channel.messages.fetch(messageId);
+                    const eventMessage = await getMessage(interaction, messageId); 
+                    if (!eventMessage) {
+                        return await interaction.update({ content: 'Event no longer exists', components: [], ephemeral: true }); 
+                    } 
                     const eventDetails = eventData[eventMessage.id];
                     const currentRoleId = Object.keys(eventDetails.participants).find(id => eventDetails.participants[id] === userId);
 
@@ -338,14 +342,16 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                         components: [],
                         ephemeral: true
                     });
-                    */
+                    
                 }
                 if (interaction.customId.startsWith('joinCTAParty')) {
                     const [action, messageId, compName] = interaction.customId.split('|');
                     const party = interaction.values[0];
-                    const eventMessage = await interaction.channel.messages.fetch(messageId);
+                    const eventMessage = await getMessage(interaction, messageId); 
+                    if (!eventMessage) {
+                        return await interaction.update({ content: 'Event no longer exists', components: [], ephemeral: true }); 
+                    } 
                     const eventDetails = eventData[eventMessage.id];
-                    console.log(action, messageId, compName, party);
                     const options = [];
                     for (const [roleId,roleName] of Object.entries(roles[guildId][compName][party])) {
                         if (!eventDetails.participants[roleId]) {
@@ -374,8 +380,6 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
 
             const { commandName, options } = interaction;
 
-            console.log(`Received command: ${interaction.commandName}`, '\nOptions: ', options.data.map(option => ({ name: option.name, value: option.value })), `\nUser: ${interaction.user.tag}\nChannel: ${interaction.channel.name}\nServer: ${interaction.guild.name}`);
-
             // Ensure roles are organized by guild
             if (!roles[guildId]) {
                 roles[guildId] = {};
@@ -386,17 +390,18 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                 const subCommand = interaction.options.getSubcommand();
                 if (subCommand === 'cancelcta') {
                     const messageId = options.getString('id');
-                    const eventMessage = await interaction.channel.messages.fetch(messageId);
-                    console.log("Message: ", eventMessage, "Event: ", eventData);
+                    const eventMessage = await getMessage(interaction, messageId); 
+                    if (!eventMessage) {
+                        return await interaction.reply({ content: 'Event no longer exists', ephemeral: true }); 
+                    }
                     if (eventMessage && eventData[messageId] ) {
-                        console.log("Current user id: ", userId, " Stored user id: ", eventData[messageId].userId);
                         if (userId != eventData[messageId].userId) {
                             return await interaction.reply({ content: `Cancelling events created by other users is not allowed`, ephemeral: true });
                         }
                         delete eventData[eventMessage];
                         eventMessage.delete();
                         await interaction.reply({ content: `Event ${eventMessage} successfully deleted`, ephemeral: true });
-                    } else { await interaction.reply({ content: `Event ${eventMessage} doesn't exist`, ephemeral: true }); }
+                    } else { await interaction.reply({ content: `Not valid event ID`, ephemeral: true }); }
                 }
                 if (subCommand === 'newcta') {
                     const eventName = options.getString('eventname');

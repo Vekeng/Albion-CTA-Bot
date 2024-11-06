@@ -204,8 +204,8 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                         return await interaction.reply({ content: 'Event no longer exists', ephemeral: true }); 
                     } 
                     const eventDetails = eventData[eventMessage.id];
-                    response = '';
-                    attention = 'Attention! 🔔 ';
+                    let response = '';
+                    let attention = 'Attention! 🔔 ';
                     Object.entries(eventDetails.participants).forEach(([key, value]) => {
                         response += `<@${value}> `;
                     });

@@ -30,11 +30,6 @@ const commands = [
             type: 1
         },
         {
-            name: 'ping', 
-            description: 'Ping participants',
-            type: 1
-        },
-        {
             type: 1, 
             name: 'newcomp',
             description: 'Create a new comp',

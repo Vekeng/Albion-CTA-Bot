@@ -268,7 +268,6 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                             ephemeral: true
                         });
                     }
-//                    }
                     const selectMenu = new StringSelectMenuBuilder()
                         .setCustomId(`joinCTAParty|${messageId}|${compName}`)
                         .setPlaceholder('Select a party')
@@ -286,12 +285,6 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
             }
             if (interaction.isStringSelectMenu()) {
                 if (interaction.customId.startsWith('joinCTARole')) {
-                    
-                    //joinCTARole(userId, roles, guildId, interaction, botDataPath, eventData);
-                    
-                    // Check if the user already has a role
-                    
-
                     const [action, messageId, compName, party] = interaction.customId.split('|');
                     const [roleId, roleName] = interaction.values[0].split('|');
                     const eventMessage = await getMessage(interaction, messageId); 
@@ -338,6 +331,7 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                     });
                     
                 }
+                // Handle menu creation to choose a role in the party
                 if (interaction.customId.startsWith('joinCTAParty')) {
                     const [action, messageId, compName] = interaction.customId.split('|');
                     const party = interaction.values[0];
@@ -382,6 +376,7 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
             // Handle /ctabot subcommands
             if (commandName === 'ctabot') {
                 const subCommand = interaction.options.getSubcommand();
+                // Handle /ctabot cancelcta
                 if (subCommand === 'cancelcta') {
                     const messageId = options.getString('id');
                     const eventMessage = await getMessage(interaction, messageId); 
@@ -397,6 +392,7 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                         await interaction.reply({ content: `Event ${eventMessage} successfully deleted`, ephemeral: true });
                     } else { await interaction.reply({ content: `Not valid event ID`, ephemeral: true }); }
                 }
+                // Handle /ctabot newcta
                 if (subCommand === 'newcta') {
                     const eventName = options.getString('eventname');
                     const date = options.getString('date');
@@ -508,11 +504,6 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                     await interaction.reply({content: response, ephemeral: true});
                 }              
             }
-
-            // Handle the /newcomp command
-            
-	    // Handle the /ctabothelp command
-	    
         });
 
         // Log in to Discord

@@ -102,7 +102,6 @@ async function getMessage(interaction, messageId) {
     try {
         // Try to fetch the message by its ID
         const message = await interaction.channel.messages.fetch(messageId);
-        console.log("Func: ", message);
         return message;  // Return message
     } catch (error) {
         if (error.code === 10008) {  // Unknown Message error code

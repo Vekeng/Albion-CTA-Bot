@@ -188,7 +188,7 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
             const channelPermissions = interaction.channel.permissionsFor(interaction.guild.members.me);
             const missingPermissions = requiredPermissions.filter(permission => !channelPermissions.has(permission));
             if (!channelPermissions) {
-                return interaction.reply("I couldn't retrieve the bot's permissions in this channel.");
+                return interaction.reply({content:"I couldn't retrieve the bot's permissions in this channel.", ephemeral: true});
             }
             if (missingPermissions.length > 0) {
                 const missingPermissionsNames = missingPermissions.map(permission => {
@@ -206,7 +206,7 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                             return 'Unknown Permission';
                     }
                 });
-                return interaction.reply(`I am missing the following permissions: ${missingPermissionsNames.join(', ')}`);
+                return interaction.reply({content:`I am missing the following permissions: ${missingPermissionsNames.join(', ')}`, ephemeral: true});
             }
             // If no permissions are missing, proceed with the action
             if (interaction.isButton()){

@@ -1,9 +1,10 @@
-const { ActionRowBuilder, ButtonBuilder, ButtonStyle, Client, GatewayIntentBits, Events, EmbedBuilder, StringSelectMenuBuilder, StringSelectMenuOptionBuilder, SlashCommandBuilder } = require('discord.js');
+const { ActionRowBuilder, ButtonBuilder, ButtonStyle, Client, GatewayIntentBits, Events, EmbedBuilder, StringSelectMenuBuilder, StringSelectMenuOptionBuilder, SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
 const fs = require('fs');
 const dotenv = require('dotenv');
 const { REST } = require('@discordjs/rest');
 const { Routes } = require('discord-api-types/v9');
 const { Console } = require('console');
+
 
 // Load environment variables
 dotenv.config();
@@ -178,6 +179,36 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
         client.on(Events.InteractionCreate, async (interaction) => {
             const guildId = interaction.guildId; // Get the server ID
             const userId = interaction.user.id; // Get the User ID
+            const requiredPermissions = [
+                PermissionFlagsBits.SendMessages,
+                PermissionFlagsBits.EmbedLinks,
+                PermissionFlagsBits.ViewChannel,
+                PermissionFlagsBits.ReadMessageHistory
+                ];
+            const channelPermissions = interaction.channel.permissionsFor(interaction.guild.members.me);
+            const missingPermissions = requiredPermissions.filter(permission => !channelPermissions.has(permission));
+            if (!channelPermissions) {
+                return interaction.reply("I couldn't retrieve the bot's permissions in this channel.");
+            }
+            if (missingPermissions.length > 0) {
+                const missingPermissionsNames = missingPermissions.map(permission => {
+                    // Convert the PermissionFlags to their names (optional)
+                    switch (permission) {
+                        case PermissionFlagsBits.SendMessages:
+                            return 'Send Messages';
+                        case PermissionFlagsBits.EmbedLinks:
+                            return 'Embed Links';
+                        case PermissionFlagsBits.ViewChannel:
+                            return 'View channel';
+                        case PermissionFlagsBits.ReadMessageHistory:
+                            return 'Read Message History';
+                        default:
+                            return 'Unknown Permission';
+                    }
+                });
+                return interaction.reply(`I am missing the following permissions: ${missingPermissionsNames.join(', ')}`);
+            }
+            // If no permissions are missing, proceed with the action
             if (interaction.isButton()){
                 // Handle Ping button
                 if (interaction.customId.startsWith('ctaping')) {
@@ -489,7 +520,7 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                     await interaction.reply({ content: response, ephemeral: true });
                 }
                 if (subCommand === 'help') {
-                    response = `**CTABot** is a Discord bot designed for managing Guild events in Albion Online. It helps players create and manage events and track participants. With CTABot, you can easily organize your CTAs, Outposts runs and other content.\n**Available Commands**\n- **/ctabot newcta**: Create a new event post with details like event name, date, time, and comp.\n- **/ctabot newcomp**: Create a new composition with a list of roles separated by semicolons \`;\`. If list includes more than 20 roles, they will be split in two or more parties. Use force to update existing comp. \n- **/ctabot listcomps**: List all compositions available or view roles in a specific composition.\n- **/ctabot ctaping**: Pings all users signed up for event.\n- **/ctabot cancelcta** - removed event with specified ID. ID can be found in the bottom of the event post.`;
+                    response = `**CTABot** is a Discord bot designed for managing Guild events in Albion Online. It helps players create and manage events and track participants. With CTABot, you can easily organize your CTAs, Outposts runs and other content.\n**Available Commands**\n- **/ctabot newcta**: Create a new event post with details like event name, date, time, and comp.\n- **/ctabot newcomp**: Create a new composition with a list of roles separated by semicolons \`;\`. If list includes more than 20 roles, they will be split in two or more parties. Use force to update existing comp. \n- **/ctabot listcomps**: List all compositions available or view roles in a specific composition.\n- **/ctabot cancelcta** - removed event with specified ID. ID can be found in the bottom of the event post.`;
                     await interaction.reply({content: response, ephemeral: true});
                 }              
             }

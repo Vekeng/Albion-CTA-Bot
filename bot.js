@@ -114,17 +114,6 @@ async function getMessage(interaction, messageId) {
     }
 }
 
-function createPartyOptions() {
-  const options = [];
-  for (const party in partyData) {
-    options.push({
-      label: party, // Display name
-      value: party, // Value to be returned on selection
-    });
-  }
-  return options;
-}
-
 function buildEventMessage(eventDetails, roles, guildId, eventId) {
     const embed = new EmbedBuilder()
         .setTitle(eventDetails.eventName)

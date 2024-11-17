@@ -116,6 +116,10 @@ const commands = [
     },
 ];
 
+async function checkAdminOrOrganizer() {
+
+}
+
 async function getMessage(interaction, messageId) {
     try {
         // Try to fetch the message by its ID
@@ -174,6 +178,9 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
             intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent],
         });
 
+        // Defining CTABot Admin Role in discord
+        const guildRoleName = "CTABot Admin";
+
         // Load roles from roles.json
         const rolesPath = 'json/roles.json';
         let roles = {};
@@ -193,9 +200,31 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
             console.log(`Bot has logged in as ${client.user.tag}`);
         });
 
+        client.on(Events.GuildCreate, async (guild) => {
+            console.log(`Joined a new guild: ${guild.name}`);
+            const existingRole = guild.roles.cache.find(role => role.name === guildRoleName);
+            const botMember = guild.members.me;
+            if (existingRole) {
+                console.log(`Role "${guildRoleName}" already exists.`);
+            } else {
+                if (botMember.permissions.has('ManageRoles')) {
+                    const role = await guild.roles.create({
+                        name: guildRoleName,
+                        //color: '#0000FF',
+                        reason: 'Admin role to control CTABot',
+                    });
+                    console.log(`Created role "${role.name}" in guild "${guild.name}".`);
+                } else {
+                    console.log(`Bot lacks permission to manage roles in "${guild.name}".`);
+                }
+            } 
+        });
+
         client.on(Events.InteractionCreate, async (interaction) => {
             const guildId = interaction.guildId; // Get the server ID
             const userId = interaction.user.id; // Get the User ID
+            const member = await interaction.guild.members.fetch(interaction.user.id);
+            const hasRole = member.roles.cache.some(role => role.name === guildRoleName);
             const requiredPermissions = [
                 PermissionFlagsBits.SendMessages,
                 PermissionFlagsBits.EmbedLinks,
@@ -425,10 +454,11 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                         return await interaction.reply({ content: 'Event no longer exists', ephemeral: true }); 
                     }
                     const eventDetails = eventData[eventMessage.id];
-                    if (eventMessage && eventData[messageId] ) {
-                        if (userId != eventData[messageId].userId) {
-                            return await interaction.reply({ content: `Freeing roles in the event is allowed only to the organizer of the event`, ephemeral: true });
-                        }
+                    console.log(`User: ${userId}, ${hasRole}`); 
+                    if (eventMessage && eventData[messageId]  ) {
+                        if (userId != eventData[messageId].userId && !hasRole ) {
+                            return await interaction.reply({ content: `Freeing roles in the event is allowed only to the organizer of the event or CTABot Admin role`, ephemeral: true });
+                        } 
                         const rolesArray = rolesString.split(',').map(role => role.trim());
                         for (let i = 0; i < rolesArray.length; i++) {
                             delete eventDetails.participants[rolesArray[i]];
@@ -447,8 +477,8 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                         return await interaction.reply({ content: 'Event no longer exists', ephemeral: true }); 
                     }
                     if (eventMessage && eventData[messageId] ) {
-                        if (userId != eventData[messageId].userId) {
-                            return await interaction.reply({ content: `Cancelling events created by other users is not allowed`, ephemeral: true });
+                        if (userId != eventData[messageId].userId && !hasRole) {
+                            return await interaction.reply({ content: `Cancelling events is allowed only to the organizer of the event or CTABot Admin role`, ephemeral: true });
                         }
                         delete eventData[eventMessage];
                         eventMessage.delete();

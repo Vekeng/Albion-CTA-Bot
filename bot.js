@@ -1,4 +1,4 @@
-const { ActionRowBuilder, ButtonBuilder, ButtonStyle, Client, GatewayIntentBits, Events, EmbedBuilder, StringSelectMenuBuilder, StringSelectMenuOptionBuilder, SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
+const { ActionRowBuilder, ButtonBuilder, ButtonStyle, Client, GatewayIntentBits, Events, EmbedBuilder, StringSelectMenuBuilder, StringSelectMenuOptionBuilder, SlashCommandBuilder, PermissionFlagsBits, ApplicationRoleConnectionMetadata } = require('discord.js');
 const fs = require('fs');
 const dotenv = require('dotenv');
 const { REST } = require('@discordjs/rest');
@@ -21,6 +21,17 @@ const commands = [
             options: [{
                 type: 3,
                 name: 'id',
+                description: 'Event ID',
+                required: true
+            }]
+        },
+        {
+            type: 1, 
+            name: 'prune',
+            description: 'Remove people not in VC from the event',
+            options: [{
+                type: 3,
+                name: 'eventid',
                 description: 'Event ID',
                 required: true
             }]
@@ -66,7 +77,24 @@ const commands = [
                     required: false,
                 },
             ],
-        },    
+        },
+        {
+            type: 1,
+            name: 'clearroles', 
+            description: 'Free up listed roles (for example, if people are unavailable)',
+            options: [{
+                name: 'eventid',
+                type: 3, // STRING
+                description: 'Name of the event',
+                required: true,
+            },
+            {
+                name: 'roles',
+                type: 3, // STRING
+                description: 'List of roles to free up separated by commas (for example: 5,8,9,23)',
+                required: true,
+            }]
+        },
         {
             type: 1, 
             name: 'newcta',
@@ -98,6 +126,10 @@ const commands = [
         }]
     },
 ];
+
+async function checkAdminOrOrganizer() {
+
+}
 
 async function getMessage(interaction, messageId) {
     try {
@@ -154,8 +186,11 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
 
         // Start the bot after command registration
         const client = new Client({
-            intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent],
+            intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent, GatewayIntentBits.GuildVoiceStates],
         });
+
+        // Defining CTABot Admin Role in discord
+        const guildRoleName = "CTABot Admin";
 
         // Load roles from roles.json
         const rolesPath = 'json/roles.json';
@@ -176,9 +211,31 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
             console.log(`Bot has logged in as ${client.user.tag}`);
         });
 
+        client.on(Events.GuildCreate, async (guild) => {
+            console.log(`Joined a new guild: ${guild.name}`);
+            const existingRole = guild.roles.cache.find(role => role.name === guildRoleName);
+            const botMember = guild.members.me;
+            if (existingRole) {
+                console.log(`Role "${guildRoleName}" already exists.`);
+            } else {
+                if (botMember.permissions.has('ManageRoles')) {
+                    const role = await guild.roles.create({
+                        name: guildRoleName,
+                        //color: '#0000FF',
+                        reason: 'Admin role to control CTABot',
+                    });
+                    console.log(`Created role "${role.name}" in guild "${guild.name}".`);
+                } else {
+                    console.log(`Bot lacks permission to manage roles in "${guild.name}".`);
+                }
+            } 
+        });
+
         client.on(Events.InteractionCreate, async (interaction) => {
             const guildId = interaction.guildId; // Get the server ID
             const userId = interaction.user.id; // Get the User ID
+            const member = await interaction.guild.members.fetch(userId);
+            const hasRole = member.roles.cache.some(role => role.name === guildRoleName);
             const requiredPermissions = [
                 PermissionFlagsBits.SendMessages,
                 PermissionFlagsBits.EmbedLinks,
@@ -202,6 +259,8 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                             return 'View channel';
                         case PermissionFlagsBits.ReadMessageHistory:
                             return 'Read Message History';
+                        case PermissionFlagsBits.ManageRoles: 
+                            return 'Manage Roles';
                         default:
                             return 'Unknown Permission';
                     }
@@ -216,7 +275,10 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                     const eventMessage = await getMessage(interaction, messageId); 
                     if (!eventMessage) {
                         return await interaction.reply({ content: 'Event no longer exists', ephemeral: true }); 
-                    } 
+                    }
+                    if (userId != eventData[messageId].userId) {
+                        return await interaction.reply({ content: `You are not allowed to ping on this event`, ephemeral: true });
+                    }
                     const eventDetails = eventData[eventMessage.id];
                     let response = '';
                     let attention = 'Attention! 🔔 ';
@@ -396,6 +458,63 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
             // Handle /ctabot subcommands
             if (commandName === 'ctabot') {
                 const subCommand = interaction.options.getSubcommand();
+                if (subCommand === 'clearroles')
+                {   
+                    const messageId = options.getString('eventid');
+                    const rolesString = options.getString('roles');
+                    const eventMessage = await getMessage(interaction, messageId);
+                    if (!eventMessage) {
+                        return await interaction.reply({ content: 'Event no longer exists', ephemeral: true }); 
+                    }
+                    const eventDetails = eventData[eventMessage.id];
+                    if (eventMessage && eventData[messageId]  ) {
+                        if (userId != eventData[messageId].userId && !hasRole ) {
+                            return await interaction.reply({ content: `Freeing roles in the event is allowed only to the organizer of the event or CTABot Admin role`, ephemeral: true });
+                        } 
+                        const rolesArray = rolesString.split(',').map(role => role.trim());
+                        for (let i = 0; i < rolesArray.length; i++) {
+                            delete eventDetails.participants[rolesArray[i]];
+                            fs.writeFileSync(botDataPath, JSON.stringify(eventData, null, 2));
+                        }
+                        embed = buildEventMessage(eventDetails, roles, guildId, eventMessage.id);
+                        await eventMessage.edit({ embeds: [embed] });
+                        await interaction.reply({ content: `Roles ${rolesString} have been cleared.`, ephemeral: true });
+                    }
+                }
+                // Clear users not in the Voice Channel from the roles
+                if (subCommand === 'prune') {
+                    const messageId = options.getString('eventid');
+                    const eventMessage = await getMessage(interaction, messageId);
+                    if (!eventMessage) {
+                        return await interaction.reply({ content: 'Event no longer exists', ephemeral: true }); 
+                    }
+                    if (userId != eventData[messageId].userId && !hasRole ) {
+                        return await interaction.reply({ content: `Freeing roles in the event is allowed only to the organizer of the event or CTABot Admin role`, ephemeral: true });
+                    }
+                    if (!member.voice.channel) {
+                        return interaction.reply('You are not in a voice channel!');
+                    }
+                    const eventDetails = eventData[eventMessage.id];
+                    const participants = eventDetails.participants;
+                    const voiceChannel = member.voice.channel;
+                    const membersInChannel = voiceChannel.members;
+                    const userList = new Set(membersInChannel.map(member => member.user.id)); 
+                    const removedUsers = [];
+                    for (const roleId in participants) {
+                        if (!userList.has(participants[roleId])) {
+                            removedUsers.push(`<@${participants[roleId]}>`);
+                            delete participants[roleId];
+                            fs.writeFileSync(botDataPath, JSON.stringify(eventData, null, 2));
+                        }
+                    }
+                    if (removedUsers.length === 0 ) {
+                        return interaction.reply({ content: `Wow! Everyone is in comms!`, ephemeral: true });
+                    }
+                    embed = buildEventMessage(eventDetails, roles, guildId, eventMessage.id);
+                    await eventMessage.edit({ embeds: [embed] });
+                    await interaction.reply({ content: `Users ${removedUsers.join(', ')} have been cleared.`, ephemeral: true });
+                }
+
                 // Handle /ctabot cancelcta
                 if (subCommand === 'cancelcta') {
                     const messageId = options.getString('id');
@@ -404,8 +523,8 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                         return await interaction.reply({ content: 'Event no longer exists', ephemeral: true }); 
                     }
                     if (eventMessage && eventData[messageId] ) {
-                        if (userId != eventData[messageId].userId) {
-                            return await interaction.reply({ content: `Cancelling events created by other users is not allowed`, ephemeral: true });
+                        if (userId != eventData[messageId].userId && !hasRole) {
+                            return await interaction.reply({ content: `Cancelling events is allowed only to the organizer of the event or CTABot Admin role`, ephemeral: true });
                         }
                         delete eventData[eventMessage];
                         eventMessage.delete();
@@ -520,7 +639,7 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                     await interaction.reply({ content: response, ephemeral: true });
                 }
                 if (subCommand === 'help') {
-                    response = `**CTABot** is a Discord bot designed for managing Guild events in Albion Online. It helps players create and manage events and track participants. With CTABot, you can easily organize your CTAs, Outposts runs and other content.\n**Available Commands**\n- **/ctabot newcta**: Create a new event post with details like event name, date, time, and comp.\n- **/ctabot newcomp**: Create a new composition with a list of roles separated by semicolons \`;\`. If list includes more than 20 roles, they will be split in two or more parties. Use force to update existing comp. \n- **/ctabot listcomps**: List all compositions available or view roles in a specific composition.\n- **/ctabot cancelcta** - removed event with specified ID. ID can be found in the bottom of the event post.`;
+                    response = `**CTABot** is a Discord bot designed for managing Guild events in Albion Online. It helps players create and manage events and track participants. With CTABot, you can easily organize your CTAs, Outposts runs and other content.\n**Available Commands**\n- **/ctabot newcta**: Create a new event post with details like event name, date, time, and comp.\n- **/ctabot newcomp**: Create a new composition with a list of roles separated by semicolons \`;\`. If list includes more than 20 roles, they will be split in two or more parties. Use force to update existing comp. \n- **/ctabot listcomps**: List all compositions available or view roles in a specific composition.\n- **/ctabot cancelcta** - removed event with specified ID. ID can be found in the bottom of the event post.\n- **/ctabot clearroles** - clears specified list of roles in specific event ID. ID can be found in the bottom of the event post.`;
                     await interaction.reply({content: response, ephemeral: true});
                 }              
             }

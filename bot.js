@@ -507,7 +507,6 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                             fs.writeFileSync(botDataPath, JSON.stringify(eventData, null, 2));
                         }
                     }
-                    console.log(removedUsers.length);
                     if (removedUsers.length === 0 ) {
                         return interaction.reply({ content: `Wow! Everyone is in comms!`, ephemeral: true });
                     }

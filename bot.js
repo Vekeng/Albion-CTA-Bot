@@ -66,7 +66,24 @@ const commands = [
                     required: false,
                 },
             ],
-        },    
+        },
+        {
+            type: 1,
+            name: 'clearroles', 
+            description: 'Free up listed roles (for example, if people are unavailable)',
+            options: [{
+                name: 'eventname',
+                type: 3, // STRING
+                description: 'Name of the event',
+                required: true,
+            },
+            {
+                name: 'roles',
+                type: 3, // STRING
+                description: 'List of roles to free up separated by commas (for example: 5,8,9,23)',
+                required: true,
+            }]
+        },
         {
             type: 1, 
             name: 'newcta',
@@ -216,7 +233,10 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                     const eventMessage = await getMessage(interaction, messageId); 
                     if (!eventMessage) {
                         return await interaction.reply({ content: 'Event no longer exists', ephemeral: true }); 
-                    } 
+                    }
+                    if (userId != eventData[messageId].userId) {
+                        return await interaction.reply({ content: `You are not allowed to ping on this event`, ephemeral: true });
+                    }
                     const eventDetails = eventData[eventMessage.id];
                     let response = '';
                     let attention = 'Attention! 🔔 ';
@@ -396,6 +416,29 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
             // Handle /ctabot subcommands
             if (commandName === 'ctabot') {
                 const subCommand = interaction.options.getSubcommand();
+                if (subCommand === 'clearroles')
+                {   
+                    const messageId = options.getString('eventname');
+                    const rolesString = options.getString('roles');
+                    const eventMessage = await getMessage(interaction, messageId);
+                    if (!eventMessage) {
+                        return await interaction.reply({ content: 'Event no longer exists', ephemeral: true }); 
+                    }
+                    const eventDetails = eventData[eventMessage.id];
+                    if (eventMessage && eventData[messageId] ) {
+                        if (userId != eventData[messageId].userId) {
+                            return await interaction.reply({ content: `Freeing roles in the event is allowed only to the organizer of the event`, ephemeral: true });
+                        }
+                        const rolesArray = rolesString.split(',').map(role => role.trim());
+                        for (let i = 0; i < rolesArray.length; i++) {
+                            delete eventDetails.participants[rolesArray[i]];
+                            fs.writeFileSync(botDataPath, JSON.stringify(eventData, null, 2));
+                        }
+                        embed = buildEventMessage(eventDetails, roles, guildId, eventMessage.id);
+                        await eventMessage.edit({ embeds: [embed] });
+                        await interaction.reply({ content: `Roles ${rolesString} have been cleared.`, ephemeral: true });
+                    }
+                }
                 // Handle /ctabot cancelcta
                 if (subCommand === 'cancelcta') {
                     const messageId = options.getString('id');

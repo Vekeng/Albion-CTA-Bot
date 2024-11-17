@@ -492,7 +492,7 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                         return await interaction.reply({ content: `Freeing roles in the event is allowed only to the organizer of the event or CTABot Admin role`, ephemeral: true });
                     }
                     if (!member.voice.channel) {
-                        return interaction.reply('You are not in a voice channel!');
+                        return interaction.reply('You are not in a voice channel!', ephemeral: true);
                     }
                     const eventDetails = eventData[eventMessage.id];
                     const participants = eventDetails.participants;

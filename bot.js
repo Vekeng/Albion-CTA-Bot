@@ -1,4 +1,4 @@
-const { ActionRowBuilder, ButtonBuilder, ButtonStyle, Client, GatewayIntentBits, Events, EmbedBuilder, StringSelectMenuBuilder, StringSelectMenuOptionBuilder, SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
+const { ActionRowBuilder, ButtonBuilder, ButtonStyle, Client, GatewayIntentBits, Events, EmbedBuilder, StringSelectMenuBuilder, StringSelectMenuOptionBuilder, SlashCommandBuilder, PermissionFlagsBits, ApplicationRoleConnectionMetadata } = require('discord.js');
 const fs = require('fs');
 const dotenv = require('dotenv');
 const { REST } = require('@discordjs/rest');
@@ -21,6 +21,17 @@ const commands = [
             options: [{
                 type: 3,
                 name: 'id',
+                description: 'Event ID',
+                required: true
+            }]
+        },
+        {
+            type: 1, 
+            name: 'prune',
+            description: 'Remove people not in VC from the event',
+            options: [{
+                type: 3,
+                name: 'eventid',
                 description: 'Event ID',
                 required: true
             }]
@@ -72,7 +83,7 @@ const commands = [
             name: 'clearroles', 
             description: 'Free up listed roles (for example, if people are unavailable)',
             options: [{
-                name: 'eventname',
+                name: 'eventid',
                 type: 3, // STRING
                 description: 'Name of the event',
                 required: true,
@@ -175,7 +186,7 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
 
         // Start the bot after command registration
         const client = new Client({
-            intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent],
+            intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent, GatewayIntentBits.GuildVoiceStates],
         });
 
         // Defining CTABot Admin Role in discord
@@ -223,7 +234,7 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
         client.on(Events.InteractionCreate, async (interaction) => {
             const guildId = interaction.guildId; // Get the server ID
             const userId = interaction.user.id; // Get the User ID
-            const member = await interaction.guild.members.fetch(interaction.user.id);
+            const member = await interaction.guild.members.fetch(userId);
             const hasRole = member.roles.cache.some(role => role.name === guildRoleName);
             const requiredPermissions = [
                 PermissionFlagsBits.SendMessages,
@@ -449,14 +460,13 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                 const subCommand = interaction.options.getSubcommand();
                 if (subCommand === 'clearroles')
                 {   
-                    const messageId = options.getString('eventname');
+                    const messageId = options.getString('eventid');
                     const rolesString = options.getString('roles');
                     const eventMessage = await getMessage(interaction, messageId);
                     if (!eventMessage) {
                         return await interaction.reply({ content: 'Event no longer exists', ephemeral: true }); 
                     }
                     const eventDetails = eventData[eventMessage.id];
-                    console.log(`User: ${userId}, ${hasRole}`); 
                     if (eventMessage && eventData[messageId]  ) {
                         if (userId != eventData[messageId].userId && !hasRole ) {
                             return await interaction.reply({ content: `Freeing roles in the event is allowed only to the organizer of the event or CTABot Admin role`, ephemeral: true });
@@ -471,6 +481,41 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                         await interaction.reply({ content: `Roles ${rolesString} have been cleared.`, ephemeral: true });
                     }
                 }
+                // Clear users not in the Voice Channel from the roles
+                if (subCommand === 'prune') {
+                    const messageId = options.getString('eventid');
+                    const eventMessage = await getMessage(interaction, messageId);
+                    if (!eventMessage) {
+                        return await interaction.reply({ content: 'Event no longer exists', ephemeral: true }); 
+                    }
+                    if (userId != eventData[messageId].userId && !hasRole ) {
+                        return await interaction.reply({ content: `Freeing roles in the event is allowed only to the organizer of the event or CTABot Admin role`, ephemeral: true });
+                    }
+                    if (!member.voice.channel) {
+                        return interaction.reply('You are not in a voice channel!');
+                    }
+                    const eventDetails = eventData[eventMessage.id];
+                    const participants = eventDetails.participants;
+                    const voiceChannel = member.voice.channel;
+                    const membersInChannel = voiceChannel.members;
+                    const userList = new Set(membersInChannel.map(member => member.user.id)); 
+                    const removedUsers = [];
+                    for (const roleId in participants) {
+                        if (!userList.has(participants[roleId])) {
+                            removedUsers.push(`<@${participants[roleId]}>`);
+                            delete participants[roleId];
+                            fs.writeFileSync(botDataPath, JSON.stringify(eventData, null, 2));
+                        }
+                    }
+                    console.log(removedUsers.length);
+                    if (removedUsers.length === 0 ) {
+                        return interaction.reply({ content: `Wow! Everyone is in comms!`, ephemeral: true });
+                    }
+                    embed = buildEventMessage(eventDetails, roles, guildId, eventMessage.id);
+                    await eventMessage.edit({ embeds: [embed] });
+                    await interaction.reply({ content: `Users ${removedUsers.join(', ')} have been cleared.`, ephemeral: true });
+                }
+
                 // Handle /ctabot cancelcta
                 if (subCommand === 'cancelcta') {
                     const messageId = options.getString('id');

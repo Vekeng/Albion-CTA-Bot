@@ -276,8 +276,8 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                     if (!eventMessage) {
                         return await interaction.reply({ content: 'Event no longer exists', ephemeral: true }); 
                     }
-                    if (userId != eventData[messageId].userId) {
-                        return await interaction.reply({ content: `You are not allowed to ping on this event`, ephemeral: true });
+                    if (userId != eventData[messageId].userId && !hasRole) {
+                        return await interaction.reply({ content: `Pings allowed only to event creator or CTABot Admin role`, ephemeral: true });
                     }
                     const eventDetails = eventData[eventMessage.id];
                     let response = '';

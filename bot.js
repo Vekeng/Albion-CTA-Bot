@@ -378,6 +378,7 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                 if (interaction.customId.startsWith('joinCTARole')) {
                     const [action, messageId, compName, party] = interaction.customId.split('|');
                     const [roleId, roleName] = interaction.values[0].split('|');
+                    await interaction.deferUpdate();
                     const eventMessage = await getMessage(interaction, messageId); 
                     if (!eventMessage) {
                         return await interaction.update({ content: 'Event no longer exists', components: [], ephemeral: true }); 
@@ -388,7 +389,7 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                     if (currentRoleId) {
                         // Notify user if trying to join the same role
                         if (currentRoleId === roleId.toString()) {
-                            return await interaction.reply({ content: 'You are already assigned to this role.', ephemeral: true });
+                            return await interaction.editReply({ content: 'You are already assigned to this role.', ephemeral: true });
                         }
                         // Free up the previous role
                         delete eventDetails.participants[currentRoleId];
@@ -396,13 +397,13 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
 
                     // Check if the requested role is available
                     if (eventDetails.participants[roleId]) {
-                        return await interaction.reply({ content: 'This role is already taken by another user.', ephemeral: true });
+                        return await interaction.editReply({ content: 'This role is already taken by another user.', ephemeral: true });
                     }
 
                     // Check if the role ID exists in the composition
                     const roleExists = Object.values(roles[guildId][eventDetails.compName]).some(party => party[roleId]);
                     if (!roleExists) {
-                        return await interaction.reply({ content: 'This role ID does not exist in the composition.', ephemeral: true });
+                        return await interaction.editReply({ content: 'This role ID does not exist in the composition.', ephemeral: true });
                     }
 
                     // Assign the user to the new role
@@ -415,7 +416,7 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                     // Update the original message
                     await eventMessage.edit({ embeds: [embed] });                    
                     // Inform about teh role change
-                    await interaction.update({
+                    await interaction.editReply({
                         content: `Your role is: ${roleId}. ${roleName}`,
                         components: [],
                         ephemeral: true
@@ -426,9 +427,10 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                 if (interaction.customId.startsWith('joinCTAParty')) {
                     const [action, messageId, compName] = interaction.customId.split('|');
                     const party = interaction.values[0];
+                    await interaction.deferUpdate();
                     const eventMessage = await getMessage(interaction, messageId); 
                     if (!eventMessage) {
-                        return await interaction.update({ content: 'Event no longer exists', components: [], ephemeral: true }); 
+                        return await interaction.editReply({ content: 'Event no longer exists', components: [], ephemeral: true }); 
                     } 
                     const eventDetails = eventData[eventMessage.id];
                     const options = [];
@@ -447,7 +449,7 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                 
                     const row = new ActionRowBuilder().addComponents(selectMenu);
                 
-                    await interaction.update({
+                    await interaction.editReply({
                         content: `Picked ${party}`,
                         components: [row],
                         ephemeral: true

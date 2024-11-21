@@ -43,6 +43,17 @@ const commands = [
         },
         {
             type: 1, 
+            name: 'timestamp',
+            description: 'Print relative Discord timestamp',
+            options: [{
+                type: 3,
+                name: 'minutes',
+                description: 'How many minutes until event?',
+                required: true
+            }]
+        },    
+        {
+            type: 1, 
             name: 'newcomp',
             description: 'Create a new comp',
             options: [{
@@ -343,7 +354,6 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                             .setOptions(options);
                     
                         const row = new ActionRowBuilder().addComponents(selectMenu);
-                    
                         return await interaction.reply({
                             content: `Picked ${party}`,
                             components: [row],
@@ -356,7 +366,6 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                         .setOptions(options);
                     
                     const row = new ActionRowBuilder().addComponents(selectMenu);
-                    
                     await interaction.reply({
                         content: 'Please select a party:',
                         components: [row],
@@ -514,7 +523,13 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                     await eventMessage.edit({ embeds: [embed] });
                     await interaction.reply({ content: `Users ${removedUsers.join(', ')} have been cleared.`, ephemeral: true });
                 }
-
+                if (subCommand === 'timestamp') {
+                    const minutes = options.getString('minutes'); 
+                    const seconds = minutes * 60;
+                    const currentTime = Date.now() / 1000; // UNIX Time
+                    const targetTime = parseInt(currentTime + seconds);
+                    return interaction.reply({ content: `<t:${targetTime}:R>`, ephemeral: true });
+                }
                 // Handle /ctabot cancelcta
                 if (subCommand === 'cancelcta') {
                     const messageId = options.getString('id');

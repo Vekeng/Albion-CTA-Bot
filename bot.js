@@ -162,67 +162,7 @@ async function getMessage(interaction, messageId) {
         }
     }
 }
-/*
-function extractKeywordAndTime(message, keyword) {
-    const timeRegex = /(\d+)\s*h\s*(\d+)\s*m/; // Matches "X h Y m" format
-    const timeMatch = message.match(timeRegex);
 
-    let hours = 0;
-    let minutes = 0;
-    let totalSeconds = 0;
-    const unixTimeNow = Math.floor(Date.now() / 1000);
-
-    if (timeMatch) {
-        hours = parseInt(timeMatch[1], 10); // Extract hours
-        minutes = parseInt(timeMatch[2], 10); // Extract minutes
-
-        // Convert to seconds
-        totalSeconds = (hours * 3600) + (minutes * 60);
-        unixTimeContent = unixTimeNow + totalSeconds; 
-    }
-    // Return results
-    return unixTimeContent;
-}
-*/
-/*
-function extractKeywordAndTime(message, keyword) {
-    // Regex for "X h Y m" format (hours and minutes)
-    const timeRegexHoursMinutes = /(\d+)\s*h\s*(\d{2})/;
-    // Regex for "X m Y s" format (minutes and seconds)
-    const timeRegexMinutesSeconds = /(\d+)\s*m\s*(\d{2})/;
-    
-    const timeMatchHoursMinutes = message.match(timeRegexHoursMinutes);
-    const timeMatchMinutesSeconds = message.match(timeRegexMinutesSeconds);
-
-    let hours = 0;
-    let minutes = 0;
-    let seconds = 0;
-    let totalSeconds = 0;
-    const unixTimeNow = Math.floor(Date.now() / 1000);
-    let unixTimeContent = unixTimeNow; // Default to current time if no match
-
-    if (timeMatchHoursMinutes) {
-        console.log("Hours");
-        // If we matched "X h Y m" format
-        hours = parseInt(timeMatchHoursMinutes[1], 10);
-        minutes = parseInt(timeMatchHoursMinutes[2], 10);
-        console.log(hours, minutes);
-        totalSeconds = (hours * 3600) + (minutes * 60); // Convert to seconds
-        unixTimeContent = unixTimeNow + totalSeconds;
-    } else if (timeMatchMinutesSeconds) {
-        console.log("Minutes");
-        // If we matched "X m Y s" format
-        minutes = parseInt(timeMatchMinutesSeconds[1], 10);
-        seconds = parseInt(timeMatchMinutesSeconds[2], 10);
-        console.log(minutes, seconds);
-        totalSeconds = (minutes * 60) + seconds; // Convert to seconds
-        unixTimeContent = unixTimeNow + totalSeconds;
-    }
-
-    // Return the calculated Unix timestamp
-    return unixTimeContent;
-}
-*/
 function extractKeywordAndTime(message, keyword) {
     // Regex for "X h Y m" format (hours and minutes)
     const timeRegexHoursMinutes = /(\d+)\s*h\s*(\d{2})/;
@@ -643,7 +583,7 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                                 if (contentRegex.test(text)) {
                                     const result = extractKeywordAndTime(text.trim(), keyword);
                                     const match = text.match(contentRegex);
-                                    message = `<@${userId}> has found ${match} is <t:${result}:R>!!! <@PVP>`;
+                                    message = `<@${userId}> has found ${match} is <t:${result}:R>!!!`;
                                     console.log(message);
                                     break; // Exit the loop once a match is found
                                 }

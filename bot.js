@@ -588,7 +588,7 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                                     const match = text.match(contentRegex);
                                     message = `<@${userId}> has found ${match} is <t:${result}:R>!!! <@PVP>`;
                                 } else {
-                                    message = 'Unrecognized content';
+                                    message = 'Unrecognized content. If you think it should be recognizable, send the screenshot to <@186362944022511616>';
                                 }
                             })
                             const isSuccessful = message !== 'Unrecognized content';

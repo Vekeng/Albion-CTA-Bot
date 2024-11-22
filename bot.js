@@ -184,6 +184,7 @@ function extractKeywordAndTime(message, keyword) {
     return unixTimeContent;
 }
 */
+/*
 function extractKeywordAndTime(message, keyword) {
     // Regex for "X h Y m" format (hours and minutes)
     const timeRegexHoursMinutes = /(\d+)\s*h\s*(\d{2})/;
@@ -221,6 +222,63 @@ function extractKeywordAndTime(message, keyword) {
     // Return the calculated Unix timestamp
     return unixTimeContent;
 }
+*/
+function extractKeywordAndTime(message, keyword) {
+    // Regex for "X h Y m" format (hours and minutes)
+    const timeRegexHoursMinutes = /(\d+)\s*h\s*(\d{2})/;
+    // Regex for "X m Y s" format (minutes and seconds)
+    const timeRegexMinutesSeconds = /(\d+)\s*m\s*(\d{2})/;
+    // Regex for "X h" format (only hours)
+    const timeRegexOnlyHours = /(\d+)\s*h/;
+    // Regex for "X m" format (only minutes)
+    const timeRegexOnlyMinutes = /(\d+)\s*m/;
+    
+    const timeMatchHoursMinutes = message.match(timeRegexHoursMinutes);
+    const timeMatchMinutesSeconds = message.match(timeRegexMinutesSeconds);
+    const timeMatchOnlyHours = message.match(timeRegexOnlyHours);
+    const timeMatchOnlyMinutes = message.match(timeRegexOnlyMinutes);
+
+    let hours = 0;
+    let minutes = 0;
+    let seconds = 0;
+    let totalSeconds = 0;
+    const unixTimeNow = Math.floor(Date.now() / 1000);
+    let unixTimeContent = unixTimeNow; // Default to current time if no match
+
+    if (timeMatchHoursMinutes) {
+        console.log("Hours and Minutes");
+        // If we matched "X h Y m" format
+        hours = parseInt(timeMatchHoursMinutes[1], 10);
+        minutes = parseInt(timeMatchHoursMinutes[2], 10);
+        console.log(hours, minutes);
+        totalSeconds = (hours * 3600) + (minutes * 60); // Convert to seconds
+        unixTimeContent = unixTimeNow + totalSeconds;
+    } else if (timeMatchMinutesSeconds) {
+        console.log("Minutes and Seconds");
+        // If we matched "X m Y s" format
+        minutes = parseInt(timeMatchMinutesSeconds[1], 10);
+        seconds = parseInt(timeMatchMinutesSeconds[2], 10);
+        console.log(minutes, seconds);
+        totalSeconds = (minutes * 60) + seconds; // Convert to seconds
+        unixTimeContent = unixTimeNow + totalSeconds;
+    } else if (timeMatchOnlyHours) {
+        console.log("Only Hours");
+        // If we matched only "X h" format
+        hours = parseInt(timeMatchOnlyHours[1], 10);
+        totalSeconds = hours * 3600; // Convert to seconds
+        unixTimeContent = unixTimeNow + totalSeconds;
+    } else if (timeMatchOnlyMinutes) {
+        console.log("Only Minutes");
+        // If we matched only "X m" format
+        minutes = parseInt(timeMatchOnlyMinutes[1], 10);
+        totalSeconds = minutes * 60; // Convert to seconds
+        unixTimeContent = unixTimeNow + totalSeconds;
+    }
+
+    // Return the calculated Unix timestamp
+    return unixTimeContent;
+}
+
 function buildEventMessage(eventDetails, roles, guildId, eventId) {
     const embed = new EmbedBuilder()
         .setTitle(eventDetails.eventName)
@@ -578,19 +636,18 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                         // Send the extracted text back
                         if (text.trim()) {
                             console.log(text);
-                            let message;
                             const allContent = ['Power Vortex', 'A tree with plenty of Tier \\d\\.\\d wood', 'A plant with plenty of Tier \\d\\.\\d fiber',  'Large Treasure Chest', 'A vein with plenty of Tier \\d\\.\\d ore', 'Power Anomaly'];
-                            //const keyword = "Power Vortex";
-                            allContent.forEach((keyword) => {
+                            let message = 'Unrecognized content'; // Default message
+                            for (const keyword of allContent) {
                                 const contentRegex = new RegExp(keyword, 'i');
                                 if (contentRegex.test(text)) {
                                     const result = extractKeywordAndTime(text.trim(), keyword);
                                     const match = text.match(contentRegex);
                                     message = `<@${userId}> has found ${match} is <t:${result}:R>!!! <@PVP>`;
-                                } else {
-                                    message = 'Unrecognized content';
+                                    console.log(message);
+                                    break; // Exit the loop once a match is found
                                 }
-                            })
+                            }
                             const isSuccessful = message !== 'Unrecognized content';
                             if (message === 'Unrecognized content') {
                                 return interaction.editReply({content: 'Unrecognized content. If you think it should be recognizable, send the screenshot to <@186362944022511616>', ephemeral: true});

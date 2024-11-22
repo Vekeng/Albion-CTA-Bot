@@ -588,12 +588,12 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                                     const match = text.match(contentRegex);
                                     message = `<@${userId}> has found ${match} is <t:${result}:R>!!! <@PVP>`;
                                 } else {
-                                    message = 'Unrecognized content. If you think it should be recognizable, send the screenshot to <@186362944022511616>';
+                                    message = 'Unrecognized content';
                                 }
                             })
                             const isSuccessful = message !== 'Unrecognized content';
                             if (message === 'Unrecognized content') {
-                                return interaction.editReply({content: 'Unrecognized content', ephemeral: true});
+                                return interaction.editReply({content: 'Unrecognized content. If you think it should be recognizable, send the screenshot to <@186362944022511616>', ephemeral: true});
                             } else {
                                 interaction.deleteReply();
                                 return interaction.followUp({content: message, files: [attachment], ephemeral: false});

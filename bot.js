@@ -1,5 +1,8 @@
 const { ActionRowBuilder, ButtonBuilder, ButtonStyle, Client, GatewayIntentBits, Events, EmbedBuilder, StringSelectMenuBuilder, StringSelectMenuOptionBuilder, SlashCommandBuilder, PermissionFlagsBits, ApplicationRoleConnectionMetadata } = require('discord.js');
 const fs = require('fs');
+const axios = require('axios');
+const path = require('path');
+const Tesseract = require('tesseract.js');
 const dotenv = require('dotenv');
 const { REST } = require('@discordjs/rest');
 const { Routes } = require('discord-api-types/v9');
@@ -40,6 +43,19 @@ const commands = [
             name: 'help',
             description: 'How to use CTA BOT',
             type: 1
+        },
+        {
+            name: 'ocr',
+            description: 'Recognize event from screenshot',
+            type: 1,
+            options: [
+                {
+                    name: 'image',
+                    type: 11, // ATTACHMENT
+                    description: 'The image to perform OCR on.',
+                    required: true,
+                },
+            ],
         },
         {
             type: 1, 
@@ -146,7 +162,65 @@ async function getMessage(interaction, messageId) {
         }
     }
 }
+/*
+function extractKeywordAndTime(message, keyword) {
+    const timeRegex = /(\d+)\s*h\s*(\d+)\s*m/; // Matches "X h Y m" format
+    const timeMatch = message.match(timeRegex);
 
+    let hours = 0;
+    let minutes = 0;
+    let totalSeconds = 0;
+    const unixTimeNow = Math.floor(Date.now() / 1000);
+
+    if (timeMatch) {
+        hours = parseInt(timeMatch[1], 10); // Extract hours
+        minutes = parseInt(timeMatch[2], 10); // Extract minutes
+
+        // Convert to seconds
+        totalSeconds = (hours * 3600) + (minutes * 60);
+        unixTimeContent = unixTimeNow + totalSeconds; 
+    }
+    // Return results
+    return unixTimeContent;
+}
+*/
+function extractKeywordAndTime(message, keyword) {
+    // Regex for "X h Y m" format (hours and minutes)
+    const timeRegexHoursMinutes = /(\d+)\s*h\s*(\d{2})/;
+    // Regex for "X m Y s" format (minutes and seconds)
+    const timeRegexMinutesSeconds = /(\d+)\s*m\s*(\d{2})/;
+    
+    const timeMatchHoursMinutes = message.match(timeRegexHoursMinutes);
+    const timeMatchMinutesSeconds = message.match(timeRegexMinutesSeconds);
+
+    let hours = 0;
+    let minutes = 0;
+    let seconds = 0;
+    let totalSeconds = 0;
+    const unixTimeNow = Math.floor(Date.now() / 1000);
+    let unixTimeContent = unixTimeNow; // Default to current time if no match
+
+    if (timeMatchHoursMinutes) {
+        console.log("Hours");
+        // If we matched "X h Y m" format
+        hours = parseInt(timeMatchHoursMinutes[1], 10);
+        minutes = parseInt(timeMatchHoursMinutes[2], 10);
+        console.log(hours, minutes);
+        totalSeconds = (hours * 3600) + (minutes * 60); // Convert to seconds
+        unixTimeContent = unixTimeNow + totalSeconds;
+    } else if (timeMatchMinutesSeconds) {
+        console.log("Minutes");
+        // If we matched "X m Y s" format
+        minutes = parseInt(timeMatchMinutesSeconds[1], 10);
+        seconds = parseInt(timeMatchMinutesSeconds[2], 10);
+        console.log(minutes, seconds);
+        totalSeconds = (minutes * 60) + seconds; // Convert to seconds
+        unixTimeContent = unixTimeNow + totalSeconds;
+    }
+
+    // Return the calculated Unix timestamp
+    return unixTimeContent;
+}
 function buildEventMessage(eventDetails, roles, guildId, eventId) {
     const embed = new EmbedBuilder()
         .setTitle(eventDetails.eventName)
@@ -480,6 +554,56 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                         await eventMessage.edit({ embeds: [embed] });
                         await interaction.reply({ content: `Roles ${rolesString} have been cleared.`, ephemeral: true });
                     }
+                }
+                if (subCommand === 'ocr') {
+                    const attachment = interaction.options.getAttachment('image');
+                    if (!attachment) {
+                        return interaction.reply({content: 'Please attach an image to perform OCR.', ephemeral: true});
+                    }
+                    try {
+                        await interaction.deferReply({ephemeral: true});
+                        const response = await axios.get(attachment.url, { responseType: 'arraybuffer' });
+                        const imagePath = path.join(__dirname, 'temp_image.png');
+
+                        // Save the image temporarily
+                        fs.writeFileSync(imagePath, response.data);
+
+                        // Perform OCR on the image
+                        const result = await Tesseract.recognize(imagePath, 'eng');
+                        const text = result.data.text;
+
+                        // Clean up temporary file
+                        fs.unlinkSync(imagePath);
+
+                        // Send the extracted text back
+                        if (text.trim()) {
+                            console.log(text);
+                            let message;
+                            const allContent = ['Power Vortex', 'A tree with plenty of Tier \\d\\.\\d wood', 'A plant with plenty of Tier \\d\\.\\d fiber',  'Large Treasure Chest', 'A vein with plenty of Tier \\d\\.\\d ore', 'Power Anomaly'];
+                            //const keyword = "Power Vortex";
+                            allContent.forEach((keyword) => {
+                                const contentRegex = new RegExp(keyword, 'i');
+                                if (contentRegex.test(text)) {
+                                    const result = extractKeywordAndTime(text.trim(), keyword);
+                                    const match = text.match(contentRegex);
+                                    message = `<@${userId}> has found ${match} is <t:${result}:R>!!! <@PVP>`;
+                                } else {
+                                    message = 'Unrecognized content';
+                                }
+                            })
+                            const isSuccessful = message !== 'Unrecognized content';
+                            if (message === 'Unrecognized content') {
+                                return interaction.editReply({content: 'Unrecognized content', ephemeral: true});
+                            } else {
+                                interaction.deleteReply();
+                                return interaction.followUp({content: message, files: [attachment], ephemeral: false});
+                            }
+                        }      
+                    } catch (error) {
+                        console.error(error);
+                        interaction.editReply({content: 'There was an error processing the image. Please try again.', ephemeral: true});
+                        }
+                    
                 }
                 // Clear users not in the Voice Channel from the roles
                 if (subCommand === 'prune') {

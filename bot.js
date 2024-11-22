@@ -353,7 +353,7 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                     }
                     const eventDetails = eventData[eventMessage.id];
                     let response = '';
-                    let attention = 'Attention! 🔔 ';
+                    let attention = `<@${userId}> calls to arms! 🔔 `;
                     Object.entries(eventDetails.participants).forEach(([key, value]) => {
                         response += `<@${value}> `;
                     });

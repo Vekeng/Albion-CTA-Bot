@@ -312,7 +312,8 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                 PermissionFlagsBits.SendMessages,
                 PermissionFlagsBits.EmbedLinks,
                 PermissionFlagsBits.ViewChannel,
-                PermissionFlagsBits.ReadMessageHistory
+                PermissionFlagsBits.ReadMessageHistory,
+                PermissionFlagsBits.ManageRoles
                 ];
             const channelPermissions = interaction.channel.permissionsFor(interaction.guild.members.me);
             const missingPermissions = requiredPermissions.filter(permission => !channelPermissions.has(permission));

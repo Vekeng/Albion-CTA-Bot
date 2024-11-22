@@ -577,8 +577,8 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                         // Send the extracted text back
                         if (text.trim()) {
                             console.log(text);
-                            const allContent = ['Power Vortex', 'A tree with plenty of Tier \\d\\.\\d wood', 'A plant with plenty of Tier \\d\\.\\d fiber',  'Large Treasure Chest', 'A vein with plenty of Tier \\d\\.\\d ore', 'Power Anomaly'];
-                            let message = 'Unrecognized content'; // Default message
+                            const allContent = ['Power Vortex', 'A \\w+ with plenty of Tier \\d\\.\\d \\w+', 'Power Anomaly'];
+                            let message; // Default message
                             for (const keyword of allContent) {
                                 const contentRegex = new RegExp(keyword, 'i');
                                 if (contentRegex.test(text)) {
@@ -587,6 +587,8 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                                     message = `<@${userId}> has found ${match} is <t:${result}:R>!!!`;
                                     console.log(message);
                                     break; // Exit the loop once a match is found
+                                } else {
+                                    message = 'Unrecognized content'
                                 }
                             }
                             const isSuccessful = message !== 'Unrecognized content';

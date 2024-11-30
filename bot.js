@@ -281,6 +281,11 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
 
         client.once(Events.ClientReady, () => {
             console.log(`Bot has logged in as ${client.user.tag}`);
+            const guildNames = client.guilds.cache.map(guild => guild.name);
+            console.log('Bot is registered in the following servers:');
+            guildNames.forEach((name, index) => {
+                console.log(`${index + 1}. ${name}`);
+            });
         });
 
         client.on(Events.GuildCreate, async (guild) => {

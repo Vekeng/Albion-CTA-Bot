@@ -186,29 +186,23 @@ function extractKeywordAndTime(message, keyword) {
     let unixTimeContent = unixTimeNow; // Default to current time if no match
 
     if (timeMatchHoursMinutes) {
-        console.log("Hours and Minutes");
         // If we matched "X h Y m" format
         hours = parseInt(timeMatchHoursMinutes[1], 10);
         minutes = parseInt(timeMatchHoursMinutes[2], 10);
-        console.log(hours, minutes);
         totalSeconds = (hours * 3600) + (minutes * 60); // Convert to seconds
         unixTimeContent = unixTimeNow + totalSeconds;
     } else if (timeMatchMinutesSeconds) {
-        console.log("Minutes and Seconds");
         // If we matched "X m Y s" format
         minutes = parseInt(timeMatchMinutesSeconds[1], 10);
         seconds = parseInt(timeMatchMinutesSeconds[2], 10);
-        console.log(minutes, seconds);
         totalSeconds = (minutes * 60) + seconds; // Convert to seconds
         unixTimeContent = unixTimeNow + totalSeconds;
     } else if (timeMatchOnlyHours) {
-        console.log("Only Hours");
         // If we matched only "X h" format
         hours = parseInt(timeMatchOnlyHours[1], 10);
         totalSeconds = hours * 3600; // Convert to seconds
         unixTimeContent = unixTimeNow + totalSeconds;
     } else if (timeMatchOnlyMinutes) {
-        console.log("Only Minutes");
         // If we matched only "X m" format
         minutes = parseInt(timeMatchOnlyMinutes[1], 10);
         totalSeconds = minutes * 60; // Convert to seconds
@@ -298,7 +292,6 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                 if (botMember.permissions.has('ManageRoles')) {
                     const role = await guild.roles.create({
                         name: guildRoleName,
-                        //color: '#0000FF',
                         reason: 'Admin role to control CTABot',
                     });
                     console.log(`Created role "${role.name}" in guild "${guild.name}".`);
@@ -581,7 +574,6 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
 
                         // Send the extracted text back
                         if (text.trim()) {
-                            console.log(text);
                             const allContent = ['Power Vortex', 'A \\w+ with plenty of Tier \\d\\.\\d \\w+', 'Power Anomaly'];
                             let message; // Default message
                             for (const keyword of allContent) {
@@ -590,7 +582,6 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                                     const result = extractKeywordAndTime(text.trim(), keyword);
                                     const match = text.match(contentRegex);
                                     message = `<@${userId}> has found ${match} is <t:${result}:R>!!!`;
-                                    console.log(message);
                                     break; // Exit the loop once a match is found
                                 } else {
                                     message = 'Unrecognized content'

@@ -793,6 +793,7 @@ With CTABot, you can easily organize your CTAs, Outposts runs, and other content
 **Available Commands**
 - **/ctabot newcta <name> <date> <time> <comp>**: Create a new event post with details like event name, date, time, and comp.
 - **/ctabot newcomp <name> <list of roles>**: Create a new composition with a list of roles separated by semicolons \`;\`. If the list includes more than 20 roles, they will be split into two or more parties. Use force to update an existing comp.
+- **/ctabot deletecomp <compname>**: Deletes specified comp. Allowed only to "CTABot Admin" Role
 - **/ctabot listcomps**: List all compositions available or view roles in a specific composition.
 - **/ctabot cancelcta <eventId>**: Remove an event with the specified ID. Event ID can be found at the bottom of the event post.
 - **/ctabot clearroles <eventId>**: Clear a specified list of roles in a specific event ID. The ID can be found at the bottom of the event post.

@@ -58,6 +58,19 @@ const commands = [
             ],
         },
         {
+            name: 'deletecomp',
+            description: 'Delete existing comp',
+            type: 1,
+            options: [
+                {
+                    name: 'compname',
+                    type: 3, // ATTACHMENT
+                    description: 'Type in the name of the comp to delete',
+                    required: true,
+                },
+            ],
+        },
+        {
             type: 1, 
             name: 'newcomp',
             description: 'Create a new comp',
@@ -647,6 +660,7 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                             return await interaction.reply({ content: `Cancelling events is allowed only to the organizer of the event or CTABot Admin role`, ephemeral: true });
                         }
                         delete eventData[eventMessage];
+                        fs.writeFileSync(botDataPath, JSON.stringify(eventData, null, 2));
                         eventMessage.delete();
                         await interaction.reply({ content: `Event ${eventMessage} successfully deleted`, ephemeral: true });
                     } else { await interaction.reply({ content: `Not valid event ID`, ephemeral: true }); }
@@ -699,6 +713,18 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                     });
                     eventData[eventMessage.id] = { eventName, userId, date, timeUTC, compName, participants: {} };
                     fs.writeFileSync(botDataPath, JSON.stringify(eventData, null, 2));                
+                }
+                if (subCommand === 'deletecomp') {
+                    const compName = options.getString('compname');
+                    if (!hasRole) {
+                        return await interaction.reply({ content: `Deleting comps is allowed only to CTABot Admin role`, ephemeral: true });
+                    }
+                    if ( !roles[guildId][compName] ) {
+                        return await interaction.reply({ content: `Comp ${compName} doesn't exist`, ephemeral: true });
+                    }
+                    delete roles[guildId][compName];
+                    fs.writeFileSync(rolesPath, JSON.stringify(roles, null, 2));
+                    return await interaction.reply({ content: `Comp ${compName} has been deleted`, ephemeral: true });
                 }
                 // Handle the /ctabot newcomp command
                 if (subCommand === 'newcomp') {

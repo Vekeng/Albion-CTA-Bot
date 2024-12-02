@@ -137,7 +137,7 @@ const commands = [
             {
                 name: 'date',
                 type: 3, // STRING
-                description: 'Date of the event',
+                description: 'Date of the event in DD.MM.YYYY format',
                 required: true,
             },
             {
@@ -224,6 +224,31 @@ function extractKeywordAndTime(message, keyword) {
 
     // Return the calculated Unix timestamp
     return unixTimeContent;
+}
+
+function isDateValid(dateString) {
+    // Regular expression to match DD.MM.YYYY format
+    const regex = /^\d{2}\.\d{2}\.\d{4}$/;
+
+    // Check if it matches the regex
+    if (!regex.test(dateString)) {
+        return false;
+    }
+
+    // Split the string into day, month, and year
+    const [day, month, year] = dateString.split('.').map(Number);
+    // Check if the month is valid (1-12)
+    if (month < 1 || month > 12) {
+        return false;
+    }
+
+    // Check if the day is valid for the given month
+    const daysInMonth = new Date(year, month, 0).getDate(); // 0th day of next month gives last day of this month
+    if (day < 1 || day > daysInMonth) {
+        return false;
+    }
+
+    return true;
 }
 
 function buildEventMessage(eventDetails, roles, guildId, eventId) {
@@ -682,6 +707,9 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
     
                     if (!roles[guildId][compName]) {
                         return await interaction.reply({ content: 'Invalid composition name provided.', ephemeral: true });
+                    }
+                    if (!isDateValid(date)) {
+                        return await interaction.reply({ content: `${date} is not valid date. Date must be in DD.MM.YYYY format`, ephemeral: true });
                     }
     
                     embed = buildEventMessage(eventDetails, roles, guildId, "");

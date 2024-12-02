@@ -318,10 +318,10 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
         //    eventData = JSON.parse(fs.readFileSync(botDataPath, 'utf-8'));
         //}
 
-        client.once(Events.ClientReady, () => {
+        client.once(Events.ClientReady, async () => {
             console.log(`Bot has logged in as ${client.user.tag}`);
             const guildNames = client.guilds.cache.map(guild => guild.name);
-            eventData = loadAndCleanEvents(botDataPath);
+            eventData = await loadAndCleanEvents(botDataPath);
             console.log('Bot is registered in the following servers:');
             guildNames.forEach((name, index) => {
                 console.log(`${index + 1}. ${name}`);

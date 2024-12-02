@@ -31,11 +31,6 @@ async function loadAndCleanEvents(filePath) {
                 const [_, day, month, year] = match.map(Number);
                 const eventDate = new Date(year, month - 1, day);
 
-                // Handle cases where the event might refer to the previous year
-                if (eventDate > currentDate) {
-                    eventDate.setFullYear(currentDate.getFullYear() - 1);
-                }
-
                 // Calculate the difference in days
                 const differenceInDays = (currentDate - eventDate) / (1000 * 60 * 60 * 24);
 

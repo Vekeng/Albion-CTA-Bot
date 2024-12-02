@@ -2,7 +2,7 @@ const fs = require('fs').promises;
 const path = require('path');
 
 // Function to clean up events older than 7 days, taking the file path as an argument
-async function deleteOldEvents(filePath) {
+async function loadAndCleanEvents(filePath) {
     console.log('Running cleanup...');
     const currentDate = new Date();
 
@@ -60,8 +60,8 @@ async function deleteOldEvents(filePath) {
         } else {
             console.log('No events were deleted.');
         }
-
         console.log('Old events cleaned up.');
+        return updatedEvents;
     } catch (error) {
         console.error('Error during cleanup:', error);
     }
@@ -69,5 +69,5 @@ async function deleteOldEvents(filePath) {
 
 // Export the function so it can be used in other files
 module.exports = {
-    deleteOldEvents
+    loadAndCleanEvents
 };

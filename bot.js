@@ -7,7 +7,7 @@ const dotenv = require('dotenv');
 const { REST } = require('@discordjs/rest');
 const { Routes } = require('discord-api-types/v9');
 const { Console } = require('console');
-const { deleteOldEvents } = require('./eventCleanup');
+const { deleteOldEvents, loadAndCleanEvents } = require('./loadAndCleanEvents');
 
 // Load environment variables
 dotenv.config();
@@ -156,8 +156,15 @@ const commands = [
     },
 ];
 
-async function checkAdminOrOrganizer() {
-
+function checkIfEventExists(eventId, eventData) {
+    const keys = Object.keys(eventData);
+ 
+    for (const key of keys) {
+        if (key === eventId) {
+            return true;
+        }
+    }
+    return false;
 }
 
 async function getMessage(interaction, messageId) {
@@ -307,14 +314,14 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
 
         // Load persistent data
 	    const botDataPath = 'json/botData.json';
-        if (fs.existsSync(botDataPath)) {
-            eventData = JSON.parse(fs.readFileSync(botDataPath, 'utf-8'));
-        }
+        //if (fs.existsSync(botDataPath)) {
+        //    eventData = JSON.parse(fs.readFileSync(botDataPath, 'utf-8'));
+        //}
 
         client.once(Events.ClientReady, () => {
             console.log(`Bot has logged in as ${client.user.tag}`);
             const guildNames = client.guilds.cache.map(guild => guild.name);
-            deleteOldEvents(botDataPath);
+            eventData = loadAndCleanEvents(botDataPath);
             console.log('Bot is registered in the following servers:');
             guildNames.forEach((name, index) => {
                 console.log(`${index + 1}. ${name}`);
@@ -384,7 +391,10 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                     const [action, messageId] = interaction.customId.split('|');
                     const eventMessage = await getMessage(interaction, messageId); 
                     if (!eventMessage) {
-                        return await interaction.reply({ content: 'Event no longer exists', ephemeral: true }); 
+                        return await interaction.reply({ content: 'Event doesn\'t exist in this channel', ephemeral: true }); 
+                    }
+                    if (!checkIfEventExists(messageId, eventData)) {
+                        return await eventMessage.edit({ content: 'Event no longer exists', embeds: [], components: []});
                     }
                     if (userId != eventData[messageId].userId && !hasRole) {
                         return await interaction.reply({ content: `Pings allowed only to event creator or CTABot Admin role`, ephemeral: true });
@@ -407,8 +417,11 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                     const [action, messageId] = interaction.customId.split('|');
                     const eventMessage = await getMessage(interaction, messageId); 
                     if (!eventMessage) {
-                        return await interaction.reply({ content: 'Event no longer exists', ephemeral: true }); 
-                    } 
+                        return await interaction.reply({ content: 'Event doesn\'t exist in this channel', ephemeral: true }); 
+                    }
+                    if (!checkIfEventExists(messageId, eventData)) {
+                        return await eventMessage.edit({ content: 'Event no longer exists', embeds: [], components: []});
+                    }
                     const eventDetails = eventData[eventMessage.id];
                     const roleToFree = Object.keys(eventDetails.participants).find(role => eventDetails.participants[role] === userId);
 
@@ -425,6 +438,13 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                 if (interaction.customId.startsWith('joinCTA')) {
                     const [action, messageId, compName] = interaction.customId.split('|');
                     const options = [];
+                    const eventMessage = await getMessage(interaction, messageId); 
+                    if (!eventMessage) {
+                        return await interaction.reply({ content: 'Event doesn\'t exist in this channel', ephemeral: true }); 
+                    }
+                    if (!checkIfEventExists(messageId, eventData)) {
+                        return await eventMessage.edit({ content: 'Event no longer exists', embeds: [], components: []});
+                    }
                     for (const party in roles[guildId][compName]) {
                         options.push({
                             label: party, // Display name
@@ -432,10 +452,7 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                           });
                     }
                     if (Object.keys(options).length === 1) {
-                        const eventMessage = await getMessage(interaction, messageId); 
-                        if (!eventMessage) {
-                            return await interaction.update({ content: 'Event no longer exists', ephemeral: true }); 
-                        } 
+                        
                         const eventDetails = eventData[eventMessage.id];
                         const options = [];
                         party = 'Party 1';
@@ -481,8 +498,11 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                     const [roleId, roleName] = interaction.values[0].split('|');
                     const eventMessage = await getMessage(interaction, messageId); 
                     if (!eventMessage) {
-                        return await interaction.update({ content: 'Event no longer exists', components: [], ephemeral: true }); 
-                    } 
+                        return await interaction.reply({ content: 'Event doesn\'t exist in this channel', ephemeral: true }); 
+                    }
+                    if (!checkIfEventExists(messageId, eventData)) {
+                        return await eventMessage.edit({ content: 'Event no longer exists', embeds: [], components: []});
+                    }
                     const eventDetails = eventData[eventMessage.id];
                     const currentRoleId = Object.keys(eventDetails.participants).find(id => eventDetails.participants[id] === userId);
 
@@ -529,8 +549,11 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                     const party = interaction.values[0];
                     const eventMessage = await getMessage(interaction, messageId); 
                     if (!eventMessage) {
-                        return await interaction.update({ content: 'Event no longer exists', components: [], ephemeral: true }); 
-                    } 
+                        return await interaction.reply({ content: 'Event doesn\'t exist in this channel', ephemeral: true }); 
+                    }
+                    if (!checkIfEventExists(messageId, eventData)) {
+                        return await eventMessage.edit({ content: 'Event no longer exists', embeds: [], components: []});
+                    }
                     const eventDetails = eventData[eventMessage.id];
                     const options = [];
                     for (const [roleId,roleName] of Object.entries(roles[guildId][compName][party])) {
@@ -574,7 +597,10 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                     const rolesString = options.getString('roles');
                     const eventMessage = await getMessage(interaction, messageId);
                     if (!eventMessage) {
-                        return await interaction.reply({ content: 'Event no longer exists', ephemeral: true }); 
+                        return await interaction.reply({ content: 'Event doesn\'t exist in this channel', ephemeral: true }); 
+                    }
+                    if (!checkIfEventExists(messageId, eventData)) {
+                        return await eventMessage.edit({ content: 'Event no longer exists', embeds: [], components: []});
                     }
                     const eventDetails = eventData[eventMessage.id];
                     if (eventMessage && eventData[messageId]  ) {
@@ -645,7 +671,10 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                     const messageId = options.getString('eventid');
                     const eventMessage = await getMessage(interaction, messageId);
                     if (!eventMessage) {
-                        return await interaction.reply({ content: 'Event no longer exists', ephemeral: true }); 
+                        return await interaction.reply({ content: 'Event doesn\'t exist in this channel', ephemeral: true }); 
+                    }
+                    if (!checkIfEventExists(messageId, eventData)) {
+                        return await eventMessage.edit({ content: 'Event no longer exists', embeds: [], components: []});
                     }
                     if (userId != eventData[messageId].userId && !hasRole ) {
                         return await interaction.reply({ content: `Freeing roles in the event is allowed only to the organizer of the event or CTABot Admin role`, ephemeral: true });
@@ -679,7 +708,10 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                     const messageId = options.getString('id');
                     const eventMessage = await getMessage(interaction, messageId); 
                     if (!eventMessage) {
-                        return await interaction.reply({ content: 'Event no longer exists', ephemeral: true }); 
+                        return await interaction.reply({ content: 'Event doesn\'t exist in this channel', ephemeral: true }); 
+                    }
+                    if (!checkIfEventExists(messageId, eventData)) {
+                        return await eventMessage.edit({ content: 'Event no longer exists', embeds: [], components: []});
                     }
                     if (eventMessage && eventData[messageId] ) {
                         if (userId != eventData[messageId].userId && !hasRole) {

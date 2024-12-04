@@ -393,7 +393,7 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                     const [action, messageId] = interaction.customId.split('|');
                     const eventMessage = await getMessage(interaction, messageId); 
                     response = "";
-                    if (eventExists(eventMessage, messageId, guildId, interaction)) {
+                    if (!await eventExists(eventMessage, messageId, guildId, interaction)) {
                         return await interaction.reply({ content: 'Event doesn\'t exist in this channel', ephemeral: true});
                     }
                     const { rows : eventData } = await pgClient.query(botQueries.GET_EVENT, [messageId, guildId]);
@@ -419,7 +419,7 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                 if (interaction.customId.startsWith('leaveCTA')) {
                     const [action, messageId] = interaction.customId.split('|');
                     const eventMessage = await getMessage(interaction, messageId); 
-                    if (eventExists(eventMessage, messageId, guildId, interaction)) {
+                    if (!await eventExists(eventMessage, messageId, guildId, interaction)) {
                         return await interaction.reply({ content: 'Event doesn\'t exist in this channel', ephemeral: true});
                     }
                     const removeParticipantQuery = 'DELETE FROM participants WHERE user_id=$1 AND event_id=$2 AND discord_id=$3';
@@ -436,7 +436,7 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                     const [action, messageId, compName] = interaction.customId.split('|');
                     const options = [];
                     const eventMessage = await getMessage(interaction, messageId); 
-                    if (eventExists(eventMessage, messageId, guildId, interaction)) {
+                    if (!await eventExists(eventMessage, messageId, guildId, interaction)) {
                         return await interaction.reply({ content: 'Event doesn\'t exist in this channel', ephemeral: true});
                     }
                     try {
@@ -472,7 +472,7 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                     const [action, messageId, compName, party] = interaction.customId.split('|');
                     const [roleId, roleName] = interaction.values[0].split('|');
                     const eventMessage = await getMessage(interaction, messageId); 
-                    if (eventExists(eventMessage, messageId, guildId, interaction)) {
+                    if (!await eventExists(eventMessage, messageId, guildId, interaction)) {
                         return await interaction.reply({ content: 'Event doesn\'t exist in this channel', ephemeral: true});
                     }
                     const checkParticipantQuery = `SELECT * FROM participants WHERE role_id=$1 AND event_id=$2 AND discord_id=$3`; 
@@ -513,7 +513,7 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                     const [action, messageId, compName] = interaction.customId.split('|');
                     const party = interaction.values[0];
                     const eventMessage = await getMessage(interaction, messageId); 
-                    if (eventExists(eventMessage, messageId, guildId, interaction)) {
+                    if (!await eventExists(eventMessage, messageId, guildId, interaction)) {
                         return await interaction.reply({ content: 'Event doesn\'t exist in this channel', ephemeral: true});
                     }
                     availableRolesInPartyResult = await pgClient.query(botQueries.GET_AVAILABLE_ROLES_IN_PARTY, [messageId, guildId, party]);
@@ -554,7 +554,7 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                         return await interaction.reply({ content: 'No proper Event ID provided', ephemeral: true});
                     }
                     const eventMessage = await getMessage(interaction, messageId);
-                    if (eventExists(eventMessage, messageId, guildId, interaction)) {
+                    if (!await eventExists(eventMessage, messageId, guildId, interaction)) {
                         return await interaction.reply({ content: 'Event doesn\'t exist in this channel', ephemeral: true});   
                     }   
                     const { rows : eventData } = await pgClient.query(botQueries.GET_EVENT, [messageId, guildId]);
@@ -626,7 +626,7 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                         return await interaction.reply({ content: 'No proper Event ID provided', ephemeral: true});
                     }
                     const eventMessage = await getMessage(interaction, messageId);
-                    if (eventExists(eventMessage, messageId, guildId, interaction)) {
+                    if (!await eventExists(eventMessage, messageId, guildId, interaction)) {
                         return await interaction.reply({ content: 'Event doesn\'t exist in this channel', ephemeral: true});
                     }
                     const { rows : eventData } = await pgClient.query(botQueries.GET_EVENT, [messageId, guildId]);

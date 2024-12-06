@@ -14,7 +14,7 @@ import dotenv from 'dotenv';
 
 // Internal modules
 import { botQueries, checkEvent, connectDb, disconnectDb, pgClient } from './postgres.js';
-import { Logger } from './utility.js';
+import { Logger } from './logger.js';
 import { commands } from './commands.js';
 
 // Initialize system logger
@@ -22,9 +22,6 @@ global.systemlog = new Logger();
 
 // Load environment variables
 dotenv.config();
-
-// Command definitions
-
 
 async function eventExists(eventMessage, eventId, guildId, interaction) {
     if (await checkEvent(eventId, guildId) === 0 ) {

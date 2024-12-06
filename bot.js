@@ -333,6 +333,15 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
         const guildRoleName = "CTABot Admin";
 
         client.once(Events.ClientReady, async () => {
+            console.log(`Bot has logged in as ${client.user.tag}`);
+            const guildInfo = client.guilds.cache.map(guild => ({
+                name: guild.name,
+                id: guild.id
+            }));
+            eventData = await loadAndCleanEvents(botDataPath);
+            console.log('Bot is registered in the following servers:');
+            guildInfo.forEach((guild, index) => {
+                console.log(`${index + 1}. ${guild.name} (ID: ${guild.id})`);
             systemlog.info(`Bot has logged in as ${client.user.tag}`);
             connectDb();
             const guildNames = client.guilds.cache.map(guild => guild.name);
@@ -343,6 +352,7 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
         });
 
         client.on(Events.GuildCreate, async (guild) => {
+            console.log(`Joined a new guild: ${guild.name}, ${guild.id}`);
             systemlog.info(`Joined a new guild: ${guild.name}`);
             const existingRole = guild.roles.cache.find(role => role.name === guildRoleName);
             const botMember = guild.members.me;

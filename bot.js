@@ -1,5 +1,5 @@
 // Discord.js imports
-const { ActionRowBuilder, ButtonBuilder, ButtonStyle, Client, GatewayIntentBits, Events, EmbedBuilder, StringSelectMenuBuilder, StringSelectMenuOptionBuilder, SlashCommandBuilder, PermissionFlagsBits, ApplicationRoleConnectionMetadata } = require('discord.js');
+const { ActionRowBuilder, ButtonBuilder, ButtonStyle, Client, GatewayIntentBits, Events, EmbedBuilder, StringSelectMenuBuilder, StringSelectMenuOptionBuilder, SlashCommandBuilder, PermissionFlagsBits, ApplicationRoleConnectionMetadata, isValidationEnabled } = require('discord.js');
 const { REST } = require('@discordjs/rest');
 const { Routes } = require('discord-api-types/v9');
 
@@ -155,7 +155,7 @@ const commands = [
             {
                 name: 'time',
                 type: 3, // STRING
-                description: 'Time in UTC',
+                description: 'Time in HH:MM format',
                 required: true,
             },
             {
@@ -253,6 +253,12 @@ function extractKeywordAndTime(message, keyword) {
 
     // Return the calculated Unix timestamp
     return unixTimeContent;
+}
+
+function isValidTime(time) {
+    // Regular expression to match HH:MM format
+    const timePattern = /^([0-1][0-9]|2[0-3]):([0-5][0-9])$/;
+    return timePattern.test(time);
 }
 
 function isDateValid(dateString) {
@@ -772,6 +778,9 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                     }
                     if (!isDateValid(date)) {
                         return await interaction.reply({ content: `${date} is not valid date. Date must be in DD.MM.YYYY format`, ephemeral: true });
+                    }
+                    if (!isValidTime(timeUTC)) {
+                        return await interaction.reply({ content: `${timeUTC} is not valid time. Time must be in HH:MM format`, ephemeral: true });
                     }
                     message = await interaction.deferReply({ fetchReply: true });
                     const eventId = message.id

@@ -1,21 +1,20 @@
 // Discord.js imports
-const { ActionRowBuilder, ButtonBuilder, ButtonStyle, Client, GatewayIntentBits, Events, EmbedBuilder, StringSelectMenuBuilder, StringSelectMenuOptionBuilder, SlashCommandBuilder, PermissionFlagsBits, ApplicationRoleConnectionMetadata, isValidationEnabled } = require('discord.js');
-const { REST } = require('@discordjs/rest');
-const { Routes } = require('discord-api-types/v9');
+import { REST } from '@discordjs/rest';
+import { ActionRowBuilder, ButtonBuilder, ButtonStyle, Client, GatewayIntentBits, Events, EmbedBuilder, StringSelectMenuBuilder, StringSelectMenuOptionBuilder, SlashCommandBuilder, PermissionFlagsBits, ApplicationRoleConnectionMetadata, isValidationEnabled } from 'discord.js';
+import { Routes } from 'discord-api-types/v9';
 
 // Core modules
-const path = require('path');
-const fs = require('fs');
-const { Console } = require('console');
+import path from 'path';
+import fs from 'fs';
 
 // Third-party modules
-const axios = require('axios');
-const Tesseract = require('tesseract.js');
-const dotenv = require('dotenv');
+import axios from 'axios';
+import Tesseract from 'tesseract.js';
+import dotenv from 'dotenv';
 
 // Internal modules
-const { botQueries, checkEvent, connectDb, disconnectDb, pgClient } = require('./postgres');
-const { Logger } = require('./utility');
+import { botQueries, checkEvent, connectDb, disconnectDb, pgClient } from './postgres.js';
+import { Logger } from './utility.js';
 
 // Initialize system logger
 global.systemlog = new Logger();

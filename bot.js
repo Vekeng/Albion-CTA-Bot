@@ -1,6 +1,6 @@
 // Discord.js imports
 import { REST } from '@discordjs/rest';
-import { ActionRowBuilder, ButtonBuilder, ButtonStyle, Client, GatewayIntentBits, Events, EmbedBuilder, StringSelectMenuBuilder, StringSelectMenuOptionBuilder, SlashCommandBuilder, PermissionFlagsBits, ApplicationRoleConnectionMetadata, isValidationEnabled } from 'discord.js';
+import { ActionRowBuilder, ButtonBuilder, ButtonStyle, Client, GatewayIntentBits, Events, StringSelectMenuBuilder, PermissionFlagsBits } from 'discord.js';
 import { Routes } from 'discord-api-types/v9';
 
 // Core modules
@@ -32,8 +32,6 @@ global.systemlog = new Logger();
 
 // Load environment variables
 dotenv.config();
-
-
 
 const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
 

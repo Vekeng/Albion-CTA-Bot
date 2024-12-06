@@ -179,6 +179,21 @@ async function eventExists(eventMessage, eventId, guildId, interaction) {
     return true;
 }
 
+function combineDateAndTime(dateStr, timeStr) {
+    // Parse the date string (DD.MM.YYYY)
+    const [day, month, year] = dateStr.split('.').map(Number);
+  
+    // Extract hours and minutes from the UTC time string (HH:MM)
+    const [hours, minutes] = timeStr.split(':').map(Number);
+  
+    // Create a Date object with the UTC time and parsed date
+    // We need to use the format YYYY-MM-DDTHH:MM:00Z for UTC date-time
+    const dateTimeString = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}T${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:00Z`;
+    
+    // Return a Date object
+    return new Date(dateTimeString);
+  }
+
 function isValidNumber(value) {
     const regex = /^\d+$/; // This regex checks for one or more digits
     if (regex.test(value) && value <= 9223372036854775807) {
@@ -676,14 +691,11 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                 if (subCommand === 'myctas') {
                     const { rows : myCtaRows } = await pgClient.query(botQueries.GET_MYCTAS, [userId, guildId]);
                     if ( myCtaRows.length > 0 ) {
-                        message = 'You are signed up for: \n';
+                        message = 'Upcoming events: \n';
                         for ( row of myCtaRows ) {
                             const today = new Date();
-                              // Create a date object for today without time
-                            const todayNoTime = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-                            const [day, month, year] = row.date.split('.').map(Number);
-                            const dateObject = new Date(year, month - 1, day); // Month is 0-indexed
-                            if (dateObject.getTime() >= todayNoTime.getTime()) {
+                            const dateTime = combineDateAndTime(row.date, row.time_utc);
+                            if (dateTime.getTime() >= today.getTime()) {
                                 message += `🚩 ${row.event_name} on 📅 ${row.date} at ⌚ ${row.time_utc} as ⚔️ ${row.role_name}\n`;
                             } 
                         }

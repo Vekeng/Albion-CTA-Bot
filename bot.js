@@ -15,9 +15,7 @@ const dotenv = require('dotenv');
 
 // Internal modules
 const { botQueries, checkEvent, connectDb, disconnectDb, pgClient } = require('./postgres');
-//require('./logger.js');
 const { Logger } = require('./utility');
-const { createBrotliCompress } = require('zlib');
 
 // Initialize system logger
 global.systemlog = new Logger();

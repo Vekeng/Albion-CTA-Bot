@@ -1,9 +1,7 @@
 import pg from 'pg';  // Import pg module
 const { Client } = pg;  // Destructure Client from pg module
-import { Logger } from './logger.js';
 
 import dotenv from 'dotenv';
-const logger = new Logger();
 
 dotenv.config();
 
@@ -18,18 +16,18 @@ const pgClient = new Client({
 const connectDb = async () => {
   try {
     await pgClient.connect();
-    logger.info('Connected to the database');
+    systemlog.info('Connected to the database');
   } catch (error) {
-    logger.error('Error connecting to the database:', error.stack);
+    systemlog.error('Error connecting to the database:', error.stack);
   }
 };
 
 const disconnectDb = async () => {
   try {
     await pgClient.end();
-    logger.info('Disconnected from the database');
+    systemlog.info('Disconnected from the database');
   } catch (error) {
-    logger.error('Error disconnecting from the database:', error.stack);
+    systemlog.error('Error disconnecting from the database:', error.stack);
   }
 };
 

@@ -1,29 +1,35 @@
 import pg from 'pg';  // Import pg module
 const { Client } = pg;  // Destructure Client from pg module
+import { Logger } from './utility.js';
+
+import dotenv from 'dotenv';
+const logger = new Logger();
+
+dotenv.config();
 
 const pgClient = new Client({
-  host: 'localhost',
-  port: 5432,
-  user: 'postgres',
-  password: 'mysecretpassword',
-  database: 'ctabot'
+  host: process.env.DATABASE_HOST,
+  port: process.env.DATA,
+  user: process.env.DATABASE_USER,
+  password: process.env.DATABASE_PASSWORD,
+  database: process.env.DATABASE_NAME
 });
 
 const connectDb = async () => {
   try {
     await pgClient.connect();
-    console.log('Connected to the database');
+    logger.info('Connected to the database');
   } catch (error) {
-    console.error('Error connecting to the database:', error.stack);
+    logger.error('Error connecting to the database:', error.stack);
   }
 };
 
 const disconnectDb = async () => {
   try {
     await pgClient.end();
-    console.log('Disconnected from the database');
+    logger.info('Disconnected from the database');
   } catch (error) {
-    console.error('Error disconnecting from the database:', error.stack);
+    logger.error('Error disconnecting from the database:', error.stack);
   }
 };
 

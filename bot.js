@@ -19,7 +19,7 @@ import { commands } from './commands.js';
 import { 
     eventExists, 
     combineDateAndTime, 
-    isValidNumber, 
+    isValidSnowflake, 
     getMessage, 
     extractKeywordAndTime, 
     isValidTime, 
@@ -314,7 +314,7 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                     const rolesString = options.getString('roles');
                     const role_ids =  rolesString.split(",").filter(item => item !== "");
                     const messageId = options.getString('eventid');
-                    if (!isValidNumber(messageId)) {
+                    if (!isValidSnowflake(messageId)) {
                         return await interaction.reply({ content: 'No proper Event ID provided', ephemeral: true});
                     }
                     const eventMessage = await getMessage(interaction, messageId);
@@ -406,7 +406,7 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                 // Clear users not in the Voice Channel from the roles
                 if (subCommand === 'prune') {
                     const messageId = options.getString('eventid');
-                    if (!isValidNumber(messageId)) {
+                    if (!isValidSnowflake(messageId)) {
                         return await interaction.reply({ content: 'No proper Event ID provided', ephemeral: true});
                     }
                     const eventMessage = await getMessage(interaction, messageId);
@@ -449,7 +449,7 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                 // Handle /ctabot cancelcta
                 if (subCommand === 'cancelcta') {
                     const eventId = options.getString('id');
-                    if (!isValidNumber(eventId)) {
+                    if (!isValidSnowflake(eventId)) {
                         return await interaction.reply({ content: 'No proper Event ID provided', ephemeral: true});
                     }
                     const eventMessage = await getMessage(interaction, eventId); 

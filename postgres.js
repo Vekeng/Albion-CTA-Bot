@@ -109,6 +109,29 @@ const botQueries = {
   `, 
   GET_EVENT: `SELECT * FROM events WHERE event_id=$1 AND discord_id=$2`, 
 
+  GET_MYCTAS: `
+    SELECT 
+      e.event_id,
+      e.event_name,
+      e.date,
+      e.time_utc,
+      r.role_id,
+      r.role_name,
+      r.party
+    FROM 
+        participants p
+    JOIN 
+        events e 
+        ON p.event_id = e.event_id AND p.discord_id = e.discord_id
+    JOIN 
+        roles r 
+        ON p.role_id = r.role_id 
+        AND p.comp_name = r.comp_name 
+        AND p.discord_id = r.discord_id
+    WHERE 
+        p.user_id = $1
+        AND p.discord_id = $2;
+    `
 }
 
 export { botQueries, checkEvent, connectDb, disconnectDb, pgClient };

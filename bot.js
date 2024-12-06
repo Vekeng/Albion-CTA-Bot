@@ -17,6 +17,7 @@ const dotenv = require('dotenv');
 const { botQueries, checkEvent, connectDb, disconnectDb, pgClient } = require('./postgres');
 //require('./logger.js');
 const { Logger } = require('./utility');
+const { createBrotliCompress } = require('zlib');
 
 // Initialize system logger
 global.systemlog = new Logger();
@@ -54,6 +55,11 @@ const commands = [
         {
             name: 'help',
             description: 'How to use CTA BOT',
+            type: 1
+        },
+        {
+            name: 'myctas',
+            description: 'List of CTAs you are signed for',
             type: 1
         },
         {
@@ -161,8 +167,6 @@ const commands = [
         }]
     },
 ];
-
-
 
 async function eventExists(eventMessage, eventId, guildId, interaction) {
     if (await checkEvent(eventId, guildId) === 0 ) {
@@ -662,6 +666,27 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                     }
                     
                 }
+
+                if (subCommand === 'myctas') {
+                    const { rows : myCtaRows } = await pgClient.query(botQueries.GET_MYCTAS, [userId, guildId]);
+                    if ( myCtaRows.length > 0 ) {
+                        message = 'You are signed up for: \n';
+                        for ( row of myCtaRows ) {
+                            const today = new Date();
+                              // Create a date object for today without time
+                            const todayNoTime = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+                            const [day, month, year] = row.date.split('.').map(Number);
+                            const dateObject = new Date(year, month - 1, day); // Month is 0-indexed
+                            if (dateObject.getTime() >= todayNoTime.getTime()) {
+                                message += `🚩 ${row.event_name} on 📅 ${row.date} at ⌚ ${row.time_utc} as ⚔️ ${row.role_name}\n`;
+                            } 
+                        }
+                        return await interaction.reply({ content: message, ephemeral: true});
+                    } else {
+                        return await interaction.reply({ content: 'There are no events you are signed up for', ephemeral: true});
+                    }
+                }
+
                 // Clear users not in the Voice Channel from the roles
                 if (subCommand === 'prune') {
                     const messageId = options.getString('eventid');

@@ -1,6 +1,6 @@
 import pg from 'pg';  // Import pg module
 const { Client } = pg;  // Destructure Client from pg module
-import { Logger } from './utility.js';
+import { Logger } from './logger.js';
 
 import dotenv from 'dotenv';
 const logger = new Logger();
@@ -31,13 +31,6 @@ const disconnectDb = async () => {
   } catch (error) {
     logger.error('Error disconnecting from the database:', error.stack);
   }
-};
-
-const checkEvent = async (eventId, guildId) => {
-  const selectEventQuery = `SELECT * FROM events WHERE event_id=$1 and discord_id=$2;`;
-  const selectResult = await pgClient.query(selectEventQuery, [eventId, guildId]);
-  const eventCount = selectResult.rowCount;
-  return eventCount;
 };
 
 const botQueries = {
@@ -140,4 +133,4 @@ const botQueries = {
     `
 }
 
-export { botQueries, checkEvent, connectDb, disconnectDb, pgClient };
+export { botQueries, connectDb, disconnectDb, pgClient };

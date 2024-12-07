@@ -2,7 +2,7 @@ import { EmbedBuilder } from 'discord.js';
 import { pgClient } from './postgres.js';
 
 
-const checkEvent = async (eventId, guildId) => {
+export const checkEvent = async (eventId, guildId) => {
     const selectEventQuery = `SELECT * FROM events WHERE event_id=$1 and discord_id=$2;`;
     const selectResult = await pgClient.query(selectEventQuery, [eventId, guildId]);
     const eventCount = selectResult.rowCount;

@@ -14,25 +14,17 @@ import dotenv from 'dotenv';
 
 // Internal modules
 import { botQueries, connectDb, disconnectDb, pgClient } from './postgres.js';
-//import { Logger } from './logger.js';
 import { logger } from './winston.js';
 import { commands } from './commands.js';
 import { CTAManager } from './Event.js';
 import { CompsManager } from './Comps.js';
 import { 
     eventExists, 
-    combineDateAndTime, 
     isValidSnowflake, 
     getMessage, 
     extractKeywordAndTime, 
-    isValidTime, 
-    isDateValid,
-    checkEvent, 
     buildEventMessage 
 } from './functions.js';
-
-// Initialize system logger
-//global.systemlog = new Logger();
 
 // Load environment variables
 dotenv.config();
@@ -94,9 +86,6 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
             const userId = interaction.user.id; // Get the User ID
             logger.setContext('guildId', guildId);
             logger.setContext('userId', userId);
-
-            // Initialize logger
-            //global.logger = new Logger(userId, guildId);
 
             const member = await interaction.guild.members.fetch(userId);
             const hasRole = member.roles.cache.some(role => role.name === guildRoleName);
@@ -164,19 +153,14 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                 }
                 // Handle Leave Button
                 if (interaction.customId.startsWith('leaveCTA')) {
-                    const [action, messageId] = interaction.customId.split('|');
-                    const eventMessage = await getMessage(interaction, messageId); 
-                    if (!await eventExists(eventMessage, messageId, guildId)) {
-                        return await interaction.reply({ content: 'Event doesn\'t exist in this channel', ephemeral: true});
+                    const [action, eventId] = interaction.customId.split('|');
+                    const eventMessage = await CTAManager.getMessage(interaction, eventId)
+                    const payload = await CTAManager.leaveCTA(userId, eventId, guildId)
+                    if (!payload.error) {
+                        await eventMessage.edit({ embeds: [payload.embed] });
+                        
                     }
-                    const removeParticipantQuery = 'DELETE FROM participants WHERE user_id=$1 AND event_id=$2 AND discord_id=$3';
-                    await pgClient.query(removeParticipantQuery, [userId,messageId,guildId]); 
-                    const eventParticipants = await pgClient.query(botQueries.GET_EVENT_PARTICIPANTS, [messageId, guildId]);
-                    const eventDataResult = await pgClient.query(botQueries.GET_EVENT, [messageId, guildId]); 
-                    const eventDetails = eventDataResult.rows[0];
-                    const embed = buildEventMessage(eventParticipants.rows, eventDetails);
-                    await eventMessage.edit({ embeds: [embed] });
-                    await interaction.reply({ content: `You have successfully left your role.`, ephemeral: true });
+                    await interaction.reply({ content: payload.message, ephemeral: true });
                 }
                 // Handle Join Button 
                 if (interaction.customId.startsWith('joinCTA')) {

@@ -70,6 +70,41 @@ class CTAManager {
         }}; 
     }
 
+    static async leaveCTA(userId, eventId, guildId) {
+        const events = await this.getEvent(eventId, guildId); 
+        let event;
+        let message;
+        if (events && events.length > 0) {
+            event = events[0];
+            console.log(event);
+        } else {
+            return {error: true, message: `${eventId} doesn't exist`};
+        }
+        const removedParticipant = await this.removeParticipant(userId, eventId, guildId);
+        
+        if (!removedParticipant) {
+            return {error: true, message: `Internal system error. Please contact the developer in https://discord.gg/tyaArtpytv`}
+        } else if (removedParticipant.rowCount > 0) {
+            message = `<@${userId}> removed from the event`;
+        } else {
+            return {error: true, message: `<@${userId}> is not in the event`};
+        }
+        const participants = await this.getParticipants(eventId, guildId); 
+        const embed = this.#buildEventMessage(participants, event);
+        return {error: false, message: message, embed: embed};        
+    }
+
+    static async removeParticipant(userId, eventId, guildId) {
+        try {
+            const removeParticipant = 'DELETE FROM participants WHERE user_id=$1 AND event_id=$2 AND discord_id=$3';
+            const participant = await pgClient.query(removeParticipant, [userId,eventId,guildId]); 
+            return participant; 
+        } catch (error) {
+            logger.logWithContext('error', `Error removing participant ${userId} for event ID ${eventId}: ${error}`)
+            return false; 
+        }
+    }
+
     static async getMyCTA(userId, guildId) {
         let myCTAs;
         try {

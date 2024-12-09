@@ -133,7 +133,7 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                 if (interaction.customId.startsWith('ctaping')) {
                     const [action, messageId] = interaction.customId.split('|');
                     const eventMessage = await getMessage(interaction, messageId); 
-                    let response;
+                    let response = '';
                     if (!await eventExists(eventMessage, messageId, guildId)) {
                         return await interaction.reply({ content: 'Event doesn\'t exist in this channel', ephemeral: true});
                     }

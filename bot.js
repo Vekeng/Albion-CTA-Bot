@@ -1,6 +1,6 @@
 // Discord.js imports
 import { REST } from '@discordjs/rest';
-import { ActionRowBuilder, ButtonBuilder, ButtonStyle, Client, GatewayIntentBits, Events, StringSelectMenuBuilder, PermissionFlagsBits } from 'discord.js';
+import { ActionRowBuilder, ButtonBuilder, ButtonStyle, Client, GatewayIntentBits, Events, StringSelectMenuBuilder, PermissionFlagsBits, PartialGroupDMChannel } from 'discord.js';
 import { Routes } from 'discord-api-types/v9';
 
 // Core modules
@@ -16,6 +16,7 @@ import dotenv from 'dotenv';
 import { botQueries, connectDb, disconnectDb, pgClient } from './postgres.js';
 import { Logger } from './logger.js';
 import { commands } from './commands.js';
+import { CTAManager } from './Event.js';
 import { 
     eventExists, 
     combineDateAndTime, 
@@ -450,93 +451,28 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                 // Handle /ctabot cancelcta
                 if (subCommand === 'cancelcta') {
                     const eventId = options.getString('id');
-                    if (!isValidSnowflake(eventId)) {
-                        return await interaction.reply({ content: 'No proper Event ID provided', ephemeral: true});
+                    const payload = await CTAManager.deleteCTA(eventId, guildId, userId, hasRole); 
+                    if (!payload.error) {
+                        const eventMessage = await CTAManager.getMessage(interaction, eventId); 
+                        eventMessage.delete(); 
                     }
-                    const eventMessage = await getMessage(interaction, eventId); 
-                    const selectResult = await pgClient.query(botQueries.GET_EVENT, [eventId, guildId]);
-                    const eventCount = selectResult.rowCount;
-                    if (!await eventExists(eventMessage, eventId, guildId)) {
-                        return await interaction.reply({ content: 'Event doesn\'t exist in this channel', ephemeral: true});
-                    }
-                    const eventDetails = selectResult.rows[0];
-                    if (userId != eventDetails.user_id && !hasRole)
-                    {
-                        return await interaction.reply({ content: `Cancelling events is allowed only to the organizer of the event or CTABot Admin role`, ephemeral: true });
-                    }
-                    
-                    const deletedEventQuery = `DELETE FROM events WHERE event_id=$1 and discord_id=$2;`;
-                    await pgClient.query(deletedEventQuery, [eventId, guildId]);
-                    eventMessage.delete();
-                    await interaction.reply({ content: `Event ${eventMessage} successfully deleted`, ephemeral: true });
+                    return await interaction.reply({ content: payload.message, ephemeral: true});
                 }
                 // Handle /ctabot newcta
                 if (subCommand === 'newcta') {
                     const eventName = options.getString('eventname');
                     const date = options.getString('date');
-                    const timeUTC = options.getString('time');
+                    const time = options.getString('time');
                     const compName = options.getString('comp');
-                    let eventParticipants;
-                                
-                    const getComps = `SELECT comp_name FROM compositions WHERE comp_name=$1 AND discord_id=$2;`;
-                    const { rows : compsRows } = await pgClient.query(getComps, [compName, guildId])
-                    if ( compsRows.length === 0 ) {
-                        return await interaction.reply({ content: `Composition "${compName}" doesn't exist`, ephemeral: true });
+
+                    const eventMessage = await interaction.deferReply({ fetchReply: true });
+                    const payload = await CTAManager.createCTA(eventMessage.id, eventName, userId, guildId, compName, date, time); 
+                    if ( !payload.error ) {
+                        interaction.editReply(payload.message);
+                    } else {
+                        interaction.deleteReply();
+                        interaction.followUp({content: payload.message, ephemeral: true});
                     }
-                    if (!isDateValid(date)) {
-                        return await interaction.reply({ content: `${date} is not valid date. Date must be in DD.MM.YYYY format`, ephemeral: true });
-                    }
-                    if (!isValidTime(timeUTC)) {
-                        return await interaction.reply({ content: `${timeUTC} is not valid time. Time must be in HH:MM format`, ephemeral: true });
-                    }
-                    const message = await interaction.deferReply({ fetchReply: true });
-                    const eventId = message.id
-                    const eventDetails = {
-                        event_id: eventId,
-                        event_name: eventName, 
-                        user_id: userId,
-                        guild_id: guildId,
-                        comp_name: compName,
-                        date: date, 
-                        time_utc: timeUTC
-                    };
-                    try {
-                        // Insert the event into the events table
-                        const res = await pgClient.query(botQueries.INSERT_EVENT, Object.values(eventDetails));
-                    } catch (error) {
-                        logger.error('Error creating event:', error);
-                        return await interaction.reply({ content: 'There was an error creating the event.', ephemeral: true });
-                    }
-                    
-                    try {
-                        eventParticipants = await pgClient.query(botQueries.GET_EVENT_PARTICIPANTS, [eventId, guildId]);
-                    } catch (error) {
-                        logger.error('Error creating event:', error);
-                        return await interaction.reply({ content: 'There was an error gettimg roles for the evnt.', ephemeral: true });
-                    }
-                    const joinButton = new ButtonBuilder()
-                        .setCustomId(`joinCTA|${eventId}|${compName}`)
-                        .setLabel('Join')
-                        .setStyle(ButtonStyle.Primary);
-                
-                    const leaveButton = new ButtonBuilder()
-                        .setCustomId(`leaveCTA|${eventId}`)
-                        .setLabel('Leave')
-                        .setStyle(ButtonStyle.Danger);
-                
-                    const pingButton = new ButtonBuilder()
-                        .setCustomId(`ctaping|${eventId}`)
-                        .setLabel('Ping')
-                        .setEmoji('⚔️')
-                        .setStyle(ButtonStyle.Danger);
-                
-                    const actionRow = new ActionRowBuilder().addComponents(joinButton, leaveButton, pingButton);
-                    const embed = buildEventMessage(eventParticipants.rows, eventDetails)
-                    embed.setFooter({ text: `Event ID: ${eventId}` });
-                    await interaction.editReply({
-                        embeds: [embed],
-                        components: [actionRow]
-                    });
                 }
                 if (subCommand === 'deletecomp') {
                     const compName = options.getString('compname');

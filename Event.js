@@ -73,9 +73,6 @@ class CTAManager {
         if (!this.#isValidSnowflake(eventId)) {
             return {error: true, message: `Event ID ${eventId} is not valid`};
         }
-        //if (!await this.#isCTAExists(eventId, guildId)) {
-        //    return {error: true, message: `${eventId} doesn't exist`};
-        //}
         const events = await this.getEvent(eventId, guildId); 
         let event;
         if (events && events.length > 0) {

@@ -1,0 +1,54 @@
+[2024-12-09T10:32:23.355Z] ERROR: Error fetching comp zvz
+[2024-12-09T10:32:23.469Z] ERROR: ReferenceError: getParticipants is not defined
+[2024-12-09T10:33:57.748Z] ERROR: Error fetching comp zvz
+[2024-12-09T10:33:57.867Z] ERROR: ReferenceError: getParticipants is not defined
+[2024-12-09T10:34:30.031Z] ERROR: Error fetching comp zvz
+[2024-12-09T10:34:30.175Z] ERROR: Error fetching participants for event ID 1315627627498700835
+[2024-12-09T10:41:15.180Z] ERROR: Error fetching comp zvz
+[2024-12-09T10:41:15.309Z] ERROR: Error fetching participants for event ID 1315629326854520857
+[2024-12-09T10:41:53.500Z] ERROR: Error fetching comp zvz
+[2024-12-09T10:41:53.631Z] ERROR: Error fetching participants for event ID 1315629487840559166
+[2024-12-09T10:43:20.827Z] ERROR: Error fetching comp zvz
+[2024-12-09T10:43:20.870Z] ERROR: Error fetching participants for event ID 1315629854028337174
+[2024-12-09T10:43:46.479Z] ERROR: Error fetching comp zvz
+[2024-12-09T10:43:46.640Z] ERROR: Error fetching participants for event ID 1315629961586933782
+[2024-12-09T10:45:23.341Z] ERROR: Error fetching comp zvz
+[2024-12-09T10:45:23.475Z] ERROR: Error fetching participants for event ID 1315630367583244300
+[2024-12-09T10:45:55.914Z] ERROR: Error fetching comp zvz
+[2024-12-09T10:45:56.051Z] ERROR: Error fetching participants for event ID 1315630504439054412
+[2024-12-09T11:40:25.248Z] ERROR: Error fetching comp zvz
+[2024-12-09T11:40:25.388Z] ERROR: Error fetching participants for event ID 1315644216717611061
+[2024-12-09T11:41:22.790Z] ERROR: Error fetching comp zvz
+[2024-12-09T11:41:22.843Z] ERROR: Error fetching participants for event ID 1315644458418700299
+[2024-12-09T11:42:19.740Z] ERROR: Error fetching comp zvz
+[2024-12-09T11:42:19.882Z] ERROR: Error fetching participants for event ID 1315644697468731392
+[2024-12-09T11:43:17.048Z] ERROR: Error fetching comp zvz
+[2024-12-09T11:44:39.781Z] ERROR: Error fetching comp zvz
+[2024-12-09T11:46:26.024Z] ERROR: Error fetching comp zvz
+[2024-12-09T11:49:54.351Z] ERROR: Error fetching comp zvz
+[2024-12-09T11:51:14.939Z] ERROR: Error fetching comp zvz
+[2024-12-09T11:51:57.196Z] ERROR: Error fetching comp zvz
+[2024-12-09T11:52:23.104Z] ERROR: Error fetching comp zvz
+[2024-12-09T11:53:42.656Z] ERROR: Error fetching comp zvz
+[2024-12-09T11:54:42.078Z] ERROR: Error fetching comp zvz
+[2024-12-09T12:00:36.270Z] ERROR: Error fetching comp zvz
+[2024-12-09T12:01:03.967Z] ERROR: Error fetching comp zvz
+[2024-12-09T12:12:56.625Z] ERROR: Error fetching comp zvz1
+[2024-12-09T12:12:56.640Z] ERROR: Error when inserting event 1315652401532764163 to the database
+[2024-12-09T12:14:28.659Z] ERROR: Error fetching comp zvz
+[2024-12-09T12:14:35.532Z] ERROR: Error fetching comp zvz1
+[2024-12-09T12:14:35.537Z] ERROR: Error when inserting event 1315652816316006444 to the database
+[2024-12-09T12:15:26.290Z] ERROR: Error fetching comp zvz
+[2024-12-09T12:15:32.307Z] ERROR: Error fetching comp zv1z
+[2024-12-09T12:15:32.315Z] ERROR: Error when inserting event 1315653054187704360 to the database
+[2024-12-09T12:16:09.316Z] ERROR: Error fetching comp zvz1
+[2024-12-09T12:16:09.333Z] ERROR: Error when inserting event 1315653210291048520 to the database
+[2024-12-09T12:17:40.213Z] ERROR: Error fetching comp zvz1
+[2024-12-09T12:17:40.227Z] ERROR: Error when inserting event 1315653590815084567 to the database
+[2024-12-09T12:18:08.050Z] ERROR: Error fetching comp zvz
+[2024-12-09T12:18:14.207Z] ERROR: Error fetching comp zvz1
+[2024-12-09T12:18:14.214Z] ERROR: Error when inserting event 1315653733438324738 to the database
+[2024-12-09T12:19:47.095Z] ERROR: Error when inserting event 1315654123525247016 to the database
+[2024-12-09T12:20:49.588Z] ERROR: Error when inserting event 1315654385572904990 to the database
+[2024-12-09T12:22:31.367Z] ERROR: Error when inserting event 1315654812326559815 to the database
+[2024-12-09T14:35:27.194Z] INFO: This is an info log

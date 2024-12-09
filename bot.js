@@ -14,9 +14,11 @@ import dotenv from 'dotenv';
 
 // Internal modules
 import { botQueries, connectDb, disconnectDb, pgClient } from './postgres.js';
-import { Logger } from './logger.js';
+//import { Logger } from './logger.js';
+import { logger } from './winston.js';
 import { commands } from './commands.js';
 import { CTAManager } from './Event.js';
+import { CompsManager } from './Comps.js';
 import { 
     eventExists, 
     combineDateAndTime, 
@@ -30,7 +32,7 @@ import {
 } from './functions.js';
 
 // Initialize system logger
-global.systemlog = new Logger();
+//global.systemlog = new Logger();
 
 // Load environment variables
 dotenv.config();
@@ -39,13 +41,13 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
 
 (async () => {
     try {
-        systemlog.info('Started refreshing application (/) commands.');
+        logger.logWithContext('info','Started refreshing application (/) commands.');
 
         await rest.put(Routes.applicationCommands(process.env.CLIENT_ID), {
             body: commands,
         });
 
-        systemlog.info('Successfully reloaded application (/) commands.');
+        logger.logWithContext('info','Successfully reloaded application (/) commands.');
 
         // Start the bot after command registration
         const client = new Client({
@@ -56,33 +58,33 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
         const guildRoleName = "CTABot Admin";
 
         client.once(Events.ClientReady, async () => {
-            systemlog.info(`Bot has logged in as ${client.user.tag}`);
+            logger.logWithContext('info',`Bot has logged in as ${client.user.tag}`);
             const guildInfo = client.guilds.cache.map(guild => ({
                 name: guild.name,
                 id: guild.id
             }));
-            systemlog.info('Bot is registered in the following servers:');
+            logger.logWithContext('info','Bot is registered in the following servers:');
             guildInfo.forEach((guild, index) => {
-                systemlog.info(`${index + 1}. ${guild.name} (ID: ${guild.id})`);
+                logger.logWithContext('info',`${index + 1}. ${guild.name} (ID: ${guild.id})`);
             });
             connectDb();
         });
 
         client.on(Events.GuildCreate, async (guild) => {
-            systemlog.info(`Joined a new guild: ${guild.name}, ${guild.id}`);
+            logger.logWithContext('info',`Joined a new guild: ${guild.name}, ${guild.id}`);
             const existingRole = guild.roles.cache.find(role => role.name === guildRoleName);
             const botMember = guild.members.me;
             if (existingRole) {
-                systemlog.info(`Role "${guildRoleName}" already exists.`);
+                logger.logWithContext('info',`Role "${guildRoleName}" already exists.`);
             } else {
                 if (botMember.permissions.has('ManageRoles')) {
                     const role = await guild.roles.create({
                         name: guildRoleName,
                         reason: 'Admin role to control CTABot',
                     });
-                    systemlog.info(`Created role "${role.name}" in guild "${guild.name}".`);
+                    logger.logWithContext('info',`Created role "${role.name}" in guild "${guild.name}".`);
                 } else {
-                    systemlog.info(`Bot lacks permission to manage roles in "${guild.name}".`);
+                    logger.logWithContext('info',`Bot lacks permission to manage roles in "${guild.name}".`);
                 }
             } 
         });
@@ -90,9 +92,12 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
         client.on(Events.InteractionCreate, async (interaction) => {
             const guildId = interaction.guildId; // Get the server ID
             const userId = interaction.user.id; // Get the User ID
+            logger.setContext('guildId', guildId);
+            logger.setContext('userId', userId);
 
             // Initialize logger
-            global.logger = new Logger(userId, guildId);
+            //global.logger = new Logger(userId, guildId);
+
             const member = await interaction.guild.members.fetch(userId);
             const hasRole = member.roles.cache.some(role => role.name === guildRoleName);
             const requiredPermissions = [
@@ -129,7 +134,7 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
             }
             // If no permissions are missing, proceed with the action
             if (interaction.isButton()){
-                logger.info(`Button pressed: ${interaction.customId}`);
+                logger.logWithContext('info',`Button pressed: ${interaction.customId}`);
                 // Handle Ping button
                 if (interaction.customId.startsWith('ctaping')) {
                     const [action, messageId] = interaction.customId.split('|');
@@ -204,13 +209,13 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                         });
 
                     } catch (error) {
-                        logger.error('Error retrieving parties:', error.stack);
+                        logger.logWithContext('error',`Error retrieving parties: ${error.stack}`);
                         return await interaction.reply({ content: 'Error retrieving parties. Try again later', ephemeral: true});
                     }
                 } 
             }
             if (interaction.isStringSelectMenu()) {
-                logger.info(`Select menu interacted: ${interaction.customId}, selected value: ${interaction.values.join(", ")}`);
+                logger.logWithContext('info',`Select menu interacted: ${interaction.customId}, selected value: ${interaction.values.join(", ")}`);
                 if (interaction.customId.startsWith('joinCTARole')) {
                     const [action, messageId, compName, party] = interaction.customId.split('|');
                     const [roleId, roleName] = interaction.values[0].split('|');
@@ -306,7 +311,7 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                     }
                 });
             }
-            logger.info(`Command used: /${logMessage}`);
+            logger.logWithContext('info',`Command used: /${logMessage}`);
             
             // Handle /ctabot subcommands
             if (commandName === 'ctabot') {
@@ -382,29 +387,16 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                             }
                         }      
                     } catch (error) {
-                        logger.error(`Error when processing the image`, error);
+                        logger.logWithContext('error',`Error when processing the image: ${error}`);
                         interaction.editReply({content: 'There was an error processing the image. Please try again.', ephemeral: true});
                     }
                     
                 }
 
                 if (subCommand === 'myctas') {
-                    const { rows : myCtaRows } = await pgClient.query(botQueries.GET_MYCTAS, [userId, guildId]);
-                    if ( myCtaRows.length > 0 ) {
-                        let message = 'Upcoming events you are signed up for: \n';
-                        for ( const row of myCtaRows ) {
-                            const today = new Date();
-                            const dateTime = combineDateAndTime(row.date, row.time_utc);
-                            if (dateTime.getTime() >= today.getTime()) {
-                                message += `🚩 ${row.event_name} on 📅 ${row.date} at ⌚ ${row.time_utc} as ⚔️ ${row.role_name}\n`;
-                            } 
-                        }
-                        return await interaction.reply({ content: message, ephemeral: true});
-                    } else {
-                        return await interaction.reply({ content: 'There are no events you are signed up for', ephemeral: true});
-                    }
+                    const payload = await CTAManager.getMyCTA(userId, guildId); 
+                    return await interaction.reply({content: payload.message, ephemeral: true});
                 }
-
                 // Clear users not in the Voice Channel from the roles
                 if (subCommand === 'prune') {
                     const messageId = options.getString('eventid');
@@ -476,30 +468,8 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                 }
                 if (subCommand === 'deletecomp') {
                     const compName = options.getString('compname');
-                    try {
-                        // Check if the composition exists in the database
-                        const checkQuery = `SELECT * FROM compositions WHERE discord_id = $1 AND comp_name = $2;`;
-                        const checkRes = await pgClient.query(checkQuery, [guildId, compName]);
-                        if (checkRes.rows.length === 0) {
-                            return await interaction.reply({ content: `Comp ${compName} doesn't exist`, ephemeral: true });
-                        }
-                        if (checkRes.rows[0].owner !== userId || !hasRole) {
-                            return await interaction.reply({ content: `Only composition owner or user with CTABot Admin role can edit this`, ephemeral: true });
-                        }
-                
-                        // Delete roles associated with this composition
-                        const deleteRolesQuery = `DELETE FROM roles WHERE comp_name = (SELECT comp_name FROM compositions WHERE discord_id = $1 AND comp_name = $2);`;
-                        await pgClient.query(deleteRolesQuery, [guildId, compName]);
-                
-                        // Delete the composition
-                        const deleteCompQuery = `DELETE FROM compositions WHERE discord_id = $1 AND comp_name = $2;`;
-                        await pgClient.query(deleteCompQuery, [guildId, compName]);
-                
-                        return await interaction.reply({ content: `Comp ${compName} has been deleted`, ephemeral: true });
-                    } catch (error) {
-                        logger.error('Error deleting composition:', error);
-                        return await interaction.reply({ content: 'There was an error deleting the composition.', ephemeral: true });
-                    }
+                    const payload = await CompsManager.deleteComp(compName, guildId, userId, hasRole); 
+                    return await interaction.reply({content: payload.message, ephemeral: true});
                 }                
                 // Handle the /ctabot newcomp command
                 if (subCommand === 'newcomp') {
@@ -508,111 +478,22 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                     if (rolesString.length > 1600) {
                         return await interaction.reply({ content: `Composition shouldn't be longer than 1600 symbols. If you really need it, consider splitting list in two or more comps.`, ephemeral: true });
                     }                
-                    const rolesArray = rolesString.split(';').map(role => role.trim());
-                    const parties = {};
-                    // Split roles into parties of maximum 20
-                    for (let i = 0; i < rolesArray.length; i++) {
-                        const partyIndex = Math.floor(i / 20);
-                        if (!parties[`Party ${partyIndex + 1}`]) {
-                            parties[`Party ${partyIndex + 1}`] = {};
-                        }
-                        parties[`Party ${partyIndex + 1}`][i + 1] = rolesArray[i]; // Role ID is index + 1
-                    }          
-                    // Check if the composition already exists in the database
-                    const existingCompQuery = `SELECT * FROM compositions WHERE discord_id = $1 AND comp_name = $2`;
-                    const { rows: existingCompRows } = await pgClient.query(existingCompQuery, [guildId, compName]);
-                
-                    if (existingCompRows.length > 0 ) {
-                        // Composition exists, send a reply
-                        return await interaction.reply({ content: `Composition "${compName}" already exists.`, ephemeral: true });
-                    } 
-                    let response; 
-                    try {
-                        // Start a transaction to insert the composition and its roles
-                        await pgClient.query('BEGIN');
-                        // Insert composition into the compositions table
-                        const insertCompQuery = `
-                            INSERT INTO compositions (discord_id, comp_name, owner)
-                            VALUES ($1, $2, $3)
-                            ON CONFLICT (discord_id, comp_name) 
-                            DO UPDATE SET comp_name = $2;
-                        `;
-                        await pgClient.query(insertCompQuery, [guildId, compName, userId]);
-                        // Insert roles into the roles table
-                        for (const partyName in parties) {
-                            const partyRoles = parties[partyName];
-                            for (const roleId in partyRoles) {
-                                const role = partyRoles[roleId];
-                                const insertRoleQuery = `
-                                    INSERT INTO roles (discord_id, comp_name, party, role_id, role_name)
-                                    VALUES ($1, $2, $3, $4, $5);
-                                `;
-                                await pgClient.query(insertRoleQuery, [guildId, compName, partyName, roleId, role]);
-                            }
-                        }
-                
-                        // Commit the transaction
-                        await pgClient.query('COMMIT');
-                        // Send a success message
-                        response = `Composition "${compName}" created and stored in the database!`;
-
-                    } catch (error) {
-                        // Rollback in case of error
-                        await pgClient.query('ROLLBACK');
-                        logger.error('Error inserting composition into DB:', error.stack);
-                        response = 'There was an error processing the composition. Please try again later.';
-                    }
-                    return await interaction.reply({ content: response, ephemeral: true });
+                    const payload = await CompsManager.newComp(compName, rolesString, guildId, userId);
+                    return await interaction.reply({content: payload.message, ephemeral: true});
                 }
                 
                 // Handle the /listcomps command
                 if (subCommand === 'listcomps') {
                     const compName = options.getString('compname');
-                    let response = '';                
+                    let payload = '';                
                     // Check if a composition name is provided
                     if (compName) {
-                        try {
-                            const query = `SELECT roles.party, roles.role_name
-                                           FROM compositions
-                                           INNER JOIN roles ON compositions.comp_name = roles.comp_name AND compositions.discord_id = roles.discord_id
-                                           WHERE compositions.discord_id = $1 AND compositions.comp_name = $2
-                                           ORDER BY roles.party, roles.role_id;`;
-                            const values = [guildId, compName];
-                            const res = await pgClient.query(query, values);
-                
-                            if (res.rows.length > 0) {
-                                response += `Roles in composition "${compName}":\n`;
-                                for (const row of res.rows) {
-                                    response += `${row.role_name}; `;
-                                }
-                            } else {
-                                response = `Composition "${compName}" does not exist.`;
-                            }
-                        } catch (error) {
-                            logger.error('Error fetching composition:', error);
-                            response = 'There was an error fetching the composition.';
-                        }
+                        payload = await CompsManager.getCompRoles(compName, guildId);
                     } else {
-                        try {
-                            const query = `SELECT comp_name FROM compositions WHERE discord_id = $1 ORDER BY comp_name;`;
-                            const values = [guildId];
-                            const res = await pgClient.query(query, values);
-                
-                            if (res.rows.length > 0) {
-                                response += 'Available compositions:\n';
-                                for (const row of res.rows) {
-                                    response += `${row.comp_name}\n`;
-                                }
-                            } else {
-                                response = 'No compositions found.';
-                            }
-                        } catch (error) {
-                            logger.error('Error fetching compositions:', error);
-                            response = 'There was an error fetching the compositions.';
-                        }
+                        payload = await CompsManager.getComps(guildId); 
                     }
                     // Send the response to the user
-                    await interaction.reply({ content: response, ephemeral: true });
+                    return await interaction.reply({content: payload.message, ephemeral: true});
                 }
                 
                 if (subCommand === 'help') {
@@ -639,20 +520,20 @@ With CTABot, you can easily organize your CTAs, Outposts runs, and other content
         // Log in to Discord
         client.login(process.env.BOT_TOKEN);
     } catch (error) {
-        systemlog.critical(error, error.stack);
+        logger.logWithContext('critical', `${error}: ${error.stack}`);
     }
 })();
 
 
 // Gracefully disconnect from the database on bot shutdown
 process.on('SIGINT', async () => {
-    systemlog.info('Bot is shutting down...');
+    logger.logWithContext('Bot is shutting down...');
     await disconnectDb(); // Disconnect from the database
     process.exit(0); // Exit the process gracefully
 });
 
 process.on('SIGTERM', async () => {
-    systemlog.info('Bot is terminating...');
+    logger.logWithContext('Bot is terminating...');
     await disconnectDb(); // Disconnect from the database
     process.exit(0); // Exit the process gracefully
 });

@@ -33,7 +33,7 @@ export function combineDateAndTime(dateStr, timeStr) {
     
     // Return a Date object
     return new Date(dateTimeString);
-  }
+}
 
 export function isValidSnowflake(value) {
     const regex = /^\d+$/; // This regex checks for one or more digits

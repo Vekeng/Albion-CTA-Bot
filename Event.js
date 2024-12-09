@@ -1,5 +1,6 @@
 import { logger } from './winston.js';
-import { botQueries, pgClient } from './postgres.js'
+import { combineDateAndTime } from './functions.js';
+import { pgClient } from './postgres.js'
 import { ActionRowBuilder, ButtonBuilder, ButtonStyle, Client, GatewayIntentBits, Events, StringSelectMenuBuilder, PermissionFlagsBits, EmbedBuilder } from 'discord.js';
 
 class CTAManager {
@@ -67,6 +68,50 @@ class CTAManager {
             components: [actionRow],
             ephemeral: false
         }}; 
+    }
+
+    static async getMyCTA(userId, guildId) {
+        let myCTAs;
+        try {
+            const getMyCTAs = `SELECT 
+                e.event_id,
+                e.event_name,
+                e.date,
+                e.time_utc,
+                r.role_id,
+                r.role_name,
+                r.party
+            FROM 
+                participants p
+            JOIN 
+                events e 
+                ON p.event_id = e.event_id AND p.discord_id = e.discord_id
+            JOIN 
+                roles r 
+                ON p.role_id = r.role_id 
+                AND p.comp_name = r.comp_name 
+                AND p.discord_id = r.discord_id
+            WHERE 
+                p.user_id = $1
+                AND p.discord_id = $2;
+            `                                                                                                   
+            myCTAs = await pgClient.query(getMyCTAs, [userId, guildId]);
+        } catch {
+            return
+        }
+        if ( myCTAs.rows.length > 0 ) {
+            let message = 'Upcoming events you are signed up for: \n';
+            for ( const row of myCTAs.rows ) {
+                const today = new Date();
+                const dateTime = combineDateAndTime(row.date, row.time_utc);
+                if (dateTime.getTime() >= today.getTime()) {
+                    message += `🚩 ${row.event_name} on 📅 ${row.date} at ⌚ ${row.time_utc} as ⚔️ ${row.role_name}\n`;
+                } 
+            }
+            return {error: false, message: message}
+        } else {
+            return {error: true, message: `You are not signed up for any CTAs`}; 
+        }
     }
 
     static async deleteCTA(eventId, guildId, userId, hasRole) {

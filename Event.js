@@ -61,7 +61,7 @@ export async function createCTA(eventId, eventName, userId, guildId, compName, d
         date: date, 
         time: time
     };
-    const embed = buildEventMessage(participants, eventDetails)
+    const embed = buildEventMessage(participants, eventDetails);
     embed.setFooter({ text: `Event ID: ${eventId}` });
     return { error: false, message: {
         embeds: [embed],
@@ -80,7 +80,7 @@ export async function leaveCTA(userId, eventId, guildId) {
     } else {
         return {error: true, message: `${eventId} doesn't exist`};
     }
-    const removedParticipant = await removeParticipant(userId, eventId, guildId);
+    const removedParticipant = await removeParticipantByUserID(userId, eventId, guildId);
     
     if (!removedParticipant) {
         return {error: true, message: `Internal system error. Please contact the developer in https://discord.gg/tyaArtpytv`}
@@ -94,13 +94,24 @@ export async function leaveCTA(userId, eventId, guildId) {
     return {error: false, message: message, embed: embed};        
 }
 
-export async function removeParticipant(userId, eventId, guildId) {
+export async function removeParticipantByUserID(userId, eventId, guildId) {
     try {
-        const removeParticipant = 'DELETE FROM participants WHERE user_id=$1 AND event_id=$2 AND discord_id=$3';
+        const removeParticipant = 'DELETE FROM participants WHERE user_id=$1 AND event_id=$2 AND discord_id=$3 RETURNING role_id';
         const participant = await pgClient.query(removeParticipant, [userId,eventId,guildId]); 
         return participant; 
     } catch (error) {
         logger.logWithContext('error', `Error removing participant ${userId} for event ID ${eventId}: ${error}`)
+        return false; 
+    }
+}
+
+export async function removeParticipantByRoleID(roleId, eventId, guildId) {
+    try {
+        const removeParticipant = 'DELETE FROM participants WHERE role_id=$1 AND event_id=$2 AND discord_id=$3 RETURNING user_id';
+        const participant = await pgClient.query(removeParticipant, [roleId,eventId,guildId]); 
+        return participant; 
+    } catch (error) {
+        logger.logWithContext('error', `Error removing participant ${roleId} for event ID ${eventId}: ${error}`)
         return false; 
     }
 }

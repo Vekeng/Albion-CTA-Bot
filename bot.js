@@ -157,8 +157,7 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                     const eventMessage = await CTAManager.getMessage(interaction, eventId)
                     const payload = await CTAManager.leaveCTA(userId, eventId, guildId)
                     if (!payload.error) {
-                        await eventMessage.edit({ embeds: [payload.embed] });
-                        
+                        await eventMessage.edit({ embeds: [payload.embed] });                        
                     }
                     await interaction.reply({ content: payload.message, ephemeral: true });
                 }
@@ -300,31 +299,30 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
             // Handle /ctabot subcommands
             if (commandName === 'ctabot') {
                 const subCommand = interaction.options.getSubcommand();
-                if (subCommand === 'clearroles')
-                {   
+                if (subCommand === 'clearroles') {
+                    const eventId = options.getString('eventid');   
                     const rolesString = options.getString('roles');
-                    const role_ids =  rolesString.split(",").filter(item => item !== "");
-                    const messageId = options.getString('eventid');
-                    if (!isValidSnowflake(messageId)) {
-                        return await interaction.reply({ content: 'No proper Event ID provided', ephemeral: true});
+                    const roles =  rolesString.split(",").filter(item => item !== "");
+                    const event = await CTAManager.getEvent(eventId, guildId); 
+                    let removedParticipants = ''; 
+                    if (event[0]) {
+                        for ( const role of roles) {
+                            const removed = await CTAManager.removeParticipantByRoleID(role, eventId, guildId); 
+                            if (removed.rowCount > 0) {
+                                removedParticipants += `<@${removed.rows[0].user_id}> removed from role ${role}.\n`;
+                            }
+                        }
+                    } 
+                    let embed; 
+                    let eventMessage; 
+                    if ( removedParticipants.length > 0 ) {
+                        eventMessage = await CTAManager.getMessage(interaction, eventId);
+                        const participants = await CTAManager.getParticipants(eventId, guildId);
+                        embed = CTAManager.buildEventMessage(participants, event[0])
+                        await eventMessage.edit({ embeds: [embed] });
+                        return await interaction.reply({ content: removedParticipants, ephemeral: true });
                     }
-                    const eventMessage = await getMessage(interaction, messageId);
-                    if (!await eventExists(eventMessage, messageId, guildId)) {
-                        return await interaction.reply({ content: 'Event doesn\'t exist in this channel', ephemeral: true});   
-                    }   
-                    const { rows : eventData } = await pgClient.query(botQueries.GET_EVENT, [messageId, guildId]);
-                    let embed;
-                    if ( eventData.length === 1 ) {
-                        
-                        const removeParticipantQuery = 'DELETE FROM participants WHERE role_id=ANY($1) AND event_id=$2 AND discord_id=$3';
-                        await pgClient.query(removeParticipantQuery, [role_ids,messageId,guildId]);
-                        const eventDetails = eventData[0]
-                        const { rows : eventParticipants } = await pgClient.query(botQueries.GET_EVENT_PARTICIPANTS, [messageId, guildId]);
-                        embed = buildEventMessage(eventParticipants, eventDetails);
-                    }
-                    
-                    await eventMessage.edit({ embeds: [embed] });
-                    await interaction.reply({ content: `Roles ${role_ids} have been cleared.`, ephemeral: true });
+                    return await interaction.reply({ content: 'Roles are already free. No one has been removed', ephemeral: true });
                 }
                 if (subCommand === 'ocr') {
                     const attachment = interaction.options.getAttachment('image');

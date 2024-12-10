@@ -333,3 +333,14 @@ export function isValidDate(date) {
 
     return true;
 }
+
+export async function isValidEvent(eventId, guildId) {
+    if (!isValidSnowflake(eventId)) {
+        return {error: true, message: `Event ID ${eventId} is not valid`};
+    }
+    const events = await getEvent(eventId, guildId);
+    if ( events.length > 0 ) {
+        return events[0];
+    }
+    return false;
+}

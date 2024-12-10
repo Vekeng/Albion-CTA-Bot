@@ -303,6 +303,9 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                     const eventId = options.getString('eventid');   
                     const rolesString = options.getString('roles');
                     const roles =  rolesString.split(",").filter(item => item !== "");
+                    if (!CTAManager.isValidSnowflake(eventId)) {
+                        return {error: true, message: `Event ID ${eventId} is not valid`};
+                    }
                     const event = await CTAManager.getEvent(eventId, guildId); 
                     let removedParticipants = ''; 
                     if (event[0]) {

@@ -303,25 +303,25 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                     const eventId = options.getString('eventid');   
                     const rolesString = options.getString('roles');
                     const roles =  rolesString.split(",").filter(item => item !== "");
-                    if (!CTAManager.isValidSnowflake(eventId)) {
-                        return {error: true, message: `Event ID ${eventId} is not valid`};
-                    }
-                    const event = await CTAManager.getEvent(eventId, guildId); 
+                    const event = await CTAManager.isValidEvent(eventId, guildId); 
+                    //const event = await CTAManager.getEvent(eventId, guildId); 
                     let removedParticipants = ''; 
-                    if (event[0]) {
+                    if (!event.error) {
                         for ( const role of roles) {
                             const removed = await CTAManager.removeParticipantByRoleID(role, eventId, guildId); 
                             if (removed.rowCount > 0) {
                                 removedParticipants += `<@${removed.rows[0].user_id}> removed from role ${role}.\n`;
                             }
                         }
-                    } 
+                    } else {
+                        return await interaction.reply({ content: event.message, ephemeral: true });
+                    }
                     let embed; 
                     let eventMessage; 
                     if ( removedParticipants.length > 0 ) {
                         eventMessage = await CTAManager.getMessage(interaction, eventId);
                         const participants = await CTAManager.getParticipants(eventId, guildId);
-                        embed = CTAManager.buildEventMessage(participants, event[0])
+                        embed = CTAManager.buildEventMessage(participants, event.message)
                         await eventMessage.edit({ embeds: [embed] });
                         return await interaction.reply({ content: removedParticipants, ephemeral: true });
                     }

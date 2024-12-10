@@ -161,15 +161,15 @@ export async function getMyCTA(userId, guildId) {
 }
 
 export async function deleteCTA(eventId, guildId, userId, hasRole) {
+    /*
     if (!isValidSnowflake(eventId)) {
         return {error: true, message: `Event ID ${eventId} is not valid`};
     }
     const events = await getEvent(eventId, guildId); 
-    let event;
-    if (events && events.length > 0) {
-        event = events[0];
-    } else {
-        return {error: true, message: `${eventId} doesn't exist`};
+    */
+    const event = await isValidEvent(eventId, guildId);
+    if (event.error) {
+        return event;
     }
     if (event.user_id != userId && !hasRole) {
         return {error: true, message: `Cancelling events is allowed only to the organizer of the event or CTABot Admin role`}
@@ -340,7 +340,7 @@ export async function isValidEvent(eventId, guildId) {
     }
     const events = await getEvent(eventId, guildId);
     if ( events.length > 0 ) {
-        return events[0];
+        return {error: false, message: events[0]};
     }
-    return false;
+    return {error: true, message: `Event ${eventId} doesn't exist`};
 }

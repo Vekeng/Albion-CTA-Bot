@@ -4,7 +4,7 @@ import { pgClient } from './postgres.js'
 //import { ActionRowBuilder, ButtonBuilder, ButtonStyle, Client, GatewayIntentBits, Events, StringSelectMenuBuilder, PermissionFlagsBits, EmbedBuilder } from 'discord.js';
 
 export async function getAllComps(guildId) {
-    let message;
+    let message = '';
     let comps;  
     try {
         const getComps = `SELECT comp_name FROM compositions WHERE discord_id = $1 ORDER BY comp_name;`;

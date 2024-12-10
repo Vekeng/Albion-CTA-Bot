@@ -16,8 +16,8 @@ import dotenv from 'dotenv';
 import { botQueries, connectDb, disconnectDb, pgClient } from './postgres.js';
 import { logger } from './winston.js';
 import { commands } from './commands.js';
-import { CTAManager } from './Event.js';
-import { CompsManager } from './Comps.js';
+import * as CTAManager from './Event.js';
+import * as CompsManager from './Comps.js';
 import { 
     eventExists, 
     isValidSnowflake, 
@@ -474,7 +474,7 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                     if (compName) {
                         payload = await CompsManager.getCompRoles(compName, guildId);
                     } else {
-                        payload = await CompsManager.getComps(guildId); 
+                        payload = await CompsManager.getAllComps(guildId); 
                     }
                     // Send the response to the user
                     return await interaction.reply({content: payload.message, ephemeral: true});

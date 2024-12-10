@@ -21,7 +21,7 @@ import * as CompsManager from './Comps.js';
 import { 
     eventExists, 
     isValidSnowflake, 
-    getMessage, 
+    //getMessage, 
     extractKeywordAndTime, 
     buildEventMessage 
 } from './functions.js';
@@ -127,7 +127,7 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                 // Handle Ping button
                 if (interaction.customId.startsWith('ctaping')) {
                     const [action, messageId] = interaction.customId.split('|');
-                    const eventMessage = await getMessage(interaction, messageId); 
+                    const eventMessage = await CTAManager.getMessage(interaction, messageId); 
                     let response = '';
                     if (!await eventExists(eventMessage, messageId, guildId)) {
                         return await interaction.reply({ content: 'Event doesn\'t exist in this channel', ephemeral: true});
@@ -155,85 +155,124 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                 if (interaction.customId.startsWith('leaveCTA')) {
                     const [action, eventId] = interaction.customId.split('|');
                     const eventMessage = await CTAManager.getMessage(interaction, eventId)
-                    const payload = await CTAManager.leaveCTA(userId, eventId, guildId)
-                    if (!payload.error) {
-                        await eventMessage.edit({ embeds: [payload.embed] });                        
+                    const result = await CTAManager.leaveCTA(userId, eventId, guildId)
+                    if (!result.error) {
+                        await eventMessage.edit({ embeds: [result.embed] });                        
                     }
-                    await interaction.reply({ content: payload.message, ephemeral: true });
+                    await interaction.reply({ content: result.payload, ephemeral: true });
                 }
                 // Handle Join Button 
                 if (interaction.customId.startsWith('joinCTA')) {
-                    const [action, messageId, compName] = interaction.customId.split('|');
+                    const [action, eventId, compName] = interaction.customId.split('|');
                     const options = [];
-                    const eventMessage = await getMessage(interaction, messageId); 
-                    if (!await eventExists(eventMessage, messageId, guildId)) {
-                        return await interaction.reply({ content: 'Event doesn\'t exist in this channel', ephemeral: true});
+                    const eventMessage = await CTAManager.getMessage(interaction, eventId); 
+                    const eventResponse = await CTAManager.getEventByID(eventId, guildId);
+                    if ( eventResponse.error ) {
+                        return eventResponse;
                     }
+                    let availableParties; 
                     try {
-                        const availablePartiesResult = await pgClient.query(botQueries.GET_AVAILABLE_PARTIES, [messageId, guildId]);
-
-                        for (const party of availablePartiesResult.rows) {
-                            options.push({
-                                label: party.party, // Display name
-                                value: party.party, // Value to be returned on selection
-                            });
-                        }
-                        const selectMenu = new StringSelectMenuBuilder()
-                        .setCustomId(`joinCTAParty|${messageId}|${compName}`)
-                        .setPlaceholder('Select a party')
-                        .setOptions(options);
-                    
-                        const row = new ActionRowBuilder().addComponents(selectMenu);
-                    
-                        await interaction.reply({
-                            content: 'Please select a party:',
-                            components: [row],
-                            ephemeral: true
-                        });
-
+                        const getParties = `
+                            SELECT DISTINCT r.party
+                            FROM
+                                roles r
+                            JOIN
+                                events e
+                            ON
+                                r.comp_name = e.comp_name
+                                AND r.discord_id = e.discord_id
+                            LEFT JOIN
+                                participants p
+                            ON
+                                p.role_id = r.role_id
+                                AND p.discord_id = r.discord_id
+                                AND p.comp_name = r.comp_name
+                                AND p.event_id = e.event_id
+                            WHERE
+                                e.event_id = $1
+                                AND e.discord_id = $2
+                                AND p.user_id IS NULL;
+                        `;
+                        availableParties = await pgClient.query(getParties, [eventId, guildId]);
                     } catch (error) {
-                        logger.logWithContext('error',`Error retrieving parties: ${error.stack}`);
-                        return await interaction.reply({ content: 'Error retrieving parties. Try again later', ephemeral: true});
+                        logger.logWithContext('error', error);
+                        return await interaction.reply({content: `Internal system error. Please contact the developer in https://discord.gg/tyaArtpytv`, ephemeral: true});
                     }
+                    if (availableParties.rowCount === 0) {
+                        return await interaction.reply({content: `There are no free roles left`, ephemeral: true});
+                    }
+                    for (const party of availableParties.rows) {
+                        options.push({
+                            label: party.party, // Display name
+                            value: party.party, // Value to be returned on selection
+                        });
+                    }
+                    const selectMenu = new StringSelectMenuBuilder()
+                    .setCustomId(`joinCTAParty|${eventId}|${compName}`)
+                    .setPlaceholder('Select a party')
+                    .setOptions(options);
+                    
+                    const row = new ActionRowBuilder().addComponents(selectMenu);
+                    
+                    await interaction.reply({
+                        content: 'Please select a party:',
+                        components: [row],
+                        ephemeral: true
+                    });
                 } 
             }
             if (interaction.isStringSelectMenu()) {
                 logger.logWithContext('info',`Select menu interacted: ${interaction.customId}, selected value: ${interaction.values.join(", ")}`);
                 if (interaction.customId.startsWith('joinCTARole')) {
-                    const [action, messageId, compName, party] = interaction.customId.split('|');
+                    const [action, eventId, compName, party] = interaction.customId.split('|');
                     const [roleId, roleName] = interaction.values[0].split('|');
-                    const eventMessage = await getMessage(interaction, messageId); 
-                    if (!await eventExists(eventMessage, messageId, guildId)) {
-                        return await interaction.reply({ content: 'Event doesn\'t exist in this channel', ephemeral: true});
+                    const eventMessage = await CTAManager.getMessage(interaction, eventId); 
+                    let participant;
+                    try {
+                        const checkParticipant = `SELECT * FROM participants WHERE role_id=$1 AND event_id=$2 AND discord_id=$3`; 
+                        participant = await pgClient.query(checkParticipant, [roleId, eventId, guildId]);
+                    } catch (error) {
+                        logger.logWithContext('error', error);
+                        return await interaction.update({content: `Internal system error. Please contact the developer in https://discord.gg/tyaArtpytv`, ephemeral: true});
                     }
-                    const checkParticipantQuery = `SELECT * FROM participants WHERE role_id=$1 AND event_id=$2 AND discord_id=$3`; 
-                    const resultCheckParticipant = await pgClient.query(checkParticipantQuery, [roleId, messageId, guildId]);
-                    const participantCount = resultCheckParticipant.rows.length;
-                    if (participantCount === 1 ) {
-                        const participantDetails = resultCheckParticipant.rows[0];
+                    if (participant.rowCount === 1 ) {
+                        const participantDetails = participant.rows[0];
                         if (participantDetails.user_id === userId) {
-                            return await interaction.reply({ content: `You already has ${roleName} assigned`, ephemeral: true});
+                            return await interaction.reply({ content: `You already has ${roleId}. ${roleName} assigned`, ephemeral: true});
                         } else {
                             return await interaction.reply({ content: `This role is already assigned to <@${participantDetails.user_id}>`, ephemeral: true});
                         }
                     }
-                    const removeParticipantQuery = 'DELETE FROM participants WHERE user_id=$1 AND event_id=$2 AND discord_id=$3';
-                    await pgClient.query(removeParticipantQuery, [userId,messageId,guildId]); 
-                    const insertParticipantQuery = `INSERT INTO participants VALUES ($1, $2, $3, $4, $5);`;
-                    const resultInsertParticipants = await pgClient.query(insertParticipantQuery, [userId, roleId, compName, messageId, guildId]);
-                    
-                    const eventParticipants = await pgClient.query(botQueries.GET_EVENT_PARTICIPANTS, [messageId, guildId]);
-
-                    const eventDataResult = await pgClient.query(botQueries.GET_EVENT, [messageId, guildId]); 
-                    const eventDetails = eventDataResult.rows[0];
+                    let removeResult;
+                    let insertResult;
+                    try {
+                        await pgClient.query('BEGIN');
+                        const removeParticipantQuery = 'DELETE FROM participants WHERE user_id=$1 AND event_id=$2 AND discord_id=$3';
+                        removeResult = await pgClient.query(removeParticipantQuery, [userId,eventId,guildId]); 
+                        const insertParticipantQuery = `INSERT INTO participants VALUES ($1, $2, $3, $4, $5);`;
+                        insertResult = await pgClient.query(insertParticipantQuery, [userId, roleId, compName, eventId, guildId]);
+                        await pgClient.query('COMMIT');
+                    } catch (error) {
+                        logger.logWithContext('error', error);
+                        await pgClient.query('ROLLBACK');
+                        return await interaction.reply({content: `Internal system error. Please contact the developer in https://discord.gg/tyaArtpytv`, ephemeral: true});
+                    }
+                    const eventParticipants = await CTAManager.getParticipants(eventId, guildId); 
+                    const eventDetails = await CTAManager.getEventByID(eventId, guildId); 
                     // Rebuild the event post
-                    const embed = buildEventMessage(eventParticipants.rows, eventDetails);
-
+                    console.log(eventDetails.payload);
+                    const embed = CTAManager.buildEventMessage(eventParticipants, eventDetails.payload);
+                    let message; 
+                    if ( removeResult.rowCount === 1 ) {
+                        message = `You have switched the role to ${roleId}. ${roleName}`;
+                    } else {
+                        message = `Your role is: ${roleId}. ${roleName}`;
+                    }
                     // Update the original message
                     await eventMessage.edit({ embeds: [embed] });                    
                     // Inform about teh role change
                     await interaction.update({
-                        content: `Your role is: ${roleId}. ${roleName}`,
+                        content: message,
                         components: [],
                         ephemeral: true
                     });
@@ -241,27 +280,32 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                 }
                 // Handle menu creation to choose a role in the party
                 if (interaction.customId.startsWith('joinCTAParty')) {
-                    const [action, messageId, compName] = interaction.customId.split('|');
+                    const [action, eventId, compName] = interaction.customId.split('|');
                     const party = interaction.values[0];
-                    const eventMessage = await getMessage(interaction, messageId); 
-                    if (!await eventExists(eventMessage, messageId, guildId)) {
-                        return await interaction.reply({ content: 'Event doesn\'t exist in this channel', ephemeral: true});
+                    let availableRoles;
+                    try {
+                        availableRoles = await pgClient.query(botQueries.GET_AVAILABLE_ROLES_IN_PARTY, [eventId, guildId, party]);
+                    } catch (error) {
+                        logger.logWithContext('error', error); 
+                        return await interaction.reply({content: `Internal system error. Please contact the developer in https://discord.gg/tyaArtpytv`, ephemeral: true});
                     }
-                    const availableRolesInPartyResult = await pgClient.query(botQueries.GET_AVAILABLE_ROLES_IN_PARTY, [messageId, guildId, party]);
+                    if ( availableRoles.rowCount === 0 ) {
+                        return await interaction.reply({content: `There are no free roles left`, ephemeral: true});
+                    }
                     const options = [];
-                    for (const { role_id: roleId, role_name: roleName } of availableRolesInPartyResult.rows) {
+                    for (const { role_id: roleId, role_name: roleName } of availableRoles.rows) {
                         options.push({
                             label: `${roleId}. ${roleName}`, // Display name
                             value: `${roleId}|${roleName}` // Value to be returned on selection
                         });
                     }
                     const selectMenu = new StringSelectMenuBuilder()
-                    .setCustomId(`joinCTARole|${messageId}|${compName}|${party}`)
+                    .setCustomId(`joinCTARole|${eventId}|${compName}|${party}`)
                     .setPlaceholder(`Select a role`)
                     .setOptions(options);
                 
                     const row = new ActionRowBuilder().addComponents(selectMenu);
-                
+                    
                     await interaction.update({
                         content: `Picked ${party}`,
                         components: [row],
@@ -303,8 +347,7 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                     const eventId = options.getString('eventid');   
                     const rolesString = options.getString('roles');
                     const roles =  rolesString.split(",").filter(item => item !== "");
-                    const event = await CTAManager.isValidEvent(eventId, guildId); 
-                    //const event = await CTAManager.getEvent(eventId, guildId); 
+                    const event = await CTAManager.getEventByID(eventId, guildId); 
                     let removedParticipants = ''; 
                     if (!event.error) {
                         for ( const role of roles) {
@@ -314,14 +357,14 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                             }
                         }
                     } else {
-                        return await interaction.reply({ content: event.message, ephemeral: true });
+                        return await interaction.reply({ content: event.payload, ephemeral: true });
                     }
                     let embed; 
                     let eventMessage; 
                     if ( removedParticipants.length > 0 ) {
                         eventMessage = await CTAManager.getMessage(interaction, eventId);
                         const participants = await CTAManager.getParticipants(eventId, guildId);
-                        embed = CTAManager.buildEventMessage(participants, event.message)
+                        embed = CTAManager.buildEventMessage(participants, event.payload)
                         await eventMessage.edit({ embeds: [embed] });
                         return await interaction.reply({ content: removedParticipants, ephemeral: true });
                     }
@@ -379,8 +422,8 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                 }
 
                 if (subCommand === 'myctas') {
-                    const payload = await CTAManager.getMyCTA(userId, guildId); 
-                    return await interaction.reply({content: payload.message, ephemeral: true});
+                    const result = await CTAManager.getMyCTA(userId, guildId); 
+                    return await interaction.reply({content: result.payload, ephemeral: true});
                 }
                 // Clear users not in the Voice Channel from the roles
                 if (subCommand === 'prune') {
@@ -428,12 +471,12 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                 // Handle /ctabot cancelcta
                 if (subCommand === 'cancelcta') {
                     const eventId = options.getString('id');
-                    const payload = await CTAManager.deleteCTA(eventId, guildId, userId, hasRole); 
-                    if (!payload.error) {
+                    const result = await CTAManager.deleteCTA(eventId, guildId, userId, hasRole); 
+                    if (!result.error) {
                         const eventMessage = await CTAManager.getMessage(interaction, eventId); 
                         eventMessage.delete(); 
                     }
-                    return await interaction.reply({ content: payload.message, ephemeral: true});
+                    return await interaction.reply({ content: result.payload, ephemeral: true});
                 }
                 // Handle /ctabot newcta
                 if (subCommand === 'newcta') {
@@ -443,18 +486,18 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                     const compName = options.getString('comp');
 
                     const eventMessage = await interaction.deferReply({ fetchReply: true });
-                    const payload = await CTAManager.createCTA(eventMessage.id, eventName, userId, guildId, compName, date, time); 
-                    if ( !payload.error ) {
-                        interaction.editReply(payload.message);
+                    const result = await CTAManager.createCTA(eventMessage.id, eventName, userId, guildId, compName, date, time); 
+                    if ( !result.error ) {
+                        interaction.editReply(result.payload);
                     } else {
                         interaction.deleteReply();
-                        interaction.followUp({content: payload.message, ephemeral: true});
+                        interaction.followUp({content: result.payload, ephemeral: true});
                     }
                 }
                 if (subCommand === 'deletecomp') {
                     const compName = options.getString('compname');
-                    const payload = await CompsManager.deleteComp(compName, guildId, userId, hasRole); 
-                    return await interaction.reply({content: payload.message, ephemeral: true});
+                    const result = await CompsManager.deleteComp(compName, guildId, userId, hasRole); 
+                    return await interaction.reply({content: result.payload, ephemeral: true});
                 }                
                 // Handle the /ctabot newcomp command
                 if (subCommand === 'newcomp') {
@@ -463,22 +506,22 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                     if (rolesString.length > 1600) {
                         return await interaction.reply({ content: `Composition shouldn't be longer than 1600 symbols. If you really need it, consider splitting list in two or more comps.`, ephemeral: true });
                     }                
-                    const payload = await CompsManager.newComp(compName, rolesString, guildId, userId);
-                    return await interaction.reply({content: payload.message, ephemeral: true});
+                    const result = await CompsManager.newComp(compName, rolesString, guildId, userId);
+                    return await interaction.reply({content: result.payload, ephemeral: true});
                 }
                 
                 // Handle the /listcomps command
                 if (subCommand === 'listcomps') {
                     const compName = options.getString('compname');
-                    let payload = '';                
+                    let result = '';                
                     // Check if a composition name is provided
                     if (compName) {
-                        payload = await CompsManager.getCompRoles(compName, guildId);
+                        result = await CompsManager.getCompRoles(compName, guildId);
                     } else {
-                        payload = await CompsManager.getAllComps(guildId); 
+                        result = await CompsManager.getAllComps(guildId); 
                     }
                     // Send the response to the user
-                    return await interaction.reply({content: payload.message, ephemeral: true});
+                    return await interaction.reply({content: result.payload, ephemeral: true});
                 }
                 
                 if (subCommand === 'help') {

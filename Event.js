@@ -6,19 +6,19 @@ import { ActionRowBuilder, ButtonBuilder, ButtonStyle, Client, GatewayIntentBits
 
 export async function createCTA(eventId, eventName, userId, guildId, compName, date, time) {
     if (!eventName || !compName || !date || !time) {
-        return {error: true, message: 'Ivalid input: Event name, Date, Time and Comp name are required'};
+        return {error: true, payload: 'Ivalid input: Event name, Date, Time and Comp name are required'};
     }
     if (eventName.length > 255) {
-        return {error: true, message: 'Invalid event name: name should be less than 255 symbols'};
+        return {error: true, payload: 'Invalid event name: name should be less than 255 symbols'};
     }
     if (!isValidDate(date)) {
-        return {error: true, message: 'Invalid date: date should be in DD.MM.YYYY format'};
+        return {error: true, payload: 'Invalid date: date should be in DD.MM.YYYY format'};
     }
     if (!isValidTime(time)) {
-        return {error: true, message: 'Invalid time: time should be in HH:MM format'};
+        return {error: true, payload: 'Invalid time: time should be in HH:MM format'};
     }
     if (!await CompsManager.isValidComp(compName, guildId)) {
-        return {error: true, message: `Composition ${compName} doesn't exist`};
+        return {error: true, payload: `Composition ${compName} doesn't exist`};
     }
     try {
         const insertEvent = `INSERT INTO events (event_id, event_name, user_id, discord_id, comp_name, date, time_utc)
@@ -26,14 +26,14 @@ export async function createCTA(eventId, eventName, userId, guildId, compName, d
         await pgClient.query(insertEvent, [eventId, eventName, userId, guildId, compName, date, time]);
     } catch (error){
         logger.logWithContext('error', `Error when inserting event ${eventId} to the database`, error);
-        return {error: true, message: `Internal system error. Please contact the developer in https://discord.gg/tyaArtpytv`} 
+        return {error: true, payload: `Internal system error. Please contact the developer in https://discord.gg/tyaArtpytv`} 
     }
     let participants; 
     try {
         participants = await getParticipants(eventId, guildId); 
     } catch (error) {
         logger.logWithContext('error', error);
-        return {error: true, message: error}; 
+        return {error: true, payload: error}; 
     }
     const joinButton = new ButtonBuilder()
         .setCustomId(`joinCTA|${eventId}|${compName}`)
@@ -59,11 +59,11 @@ export async function createCTA(eventId, eventName, userId, guildId, compName, d
         guild_id: guildId,
         comp_name: compName,
         date: date, 
-        time: time
+        time_utc: time
     };
     const embed = buildEventMessage(participants, eventDetails);
     embed.setFooter({ text: `Event ID: ${eventId}` });
-    return { error: false, message: {
+    return { error: false, payload: {
         embeds: [embed],
         components: [actionRow],
         ephemeral: false
@@ -71,27 +71,24 @@ export async function createCTA(eventId, eventName, userId, guildId, compName, d
 }
 
 export async function leaveCTA(userId, eventId, guildId) {
-    const events = await getEvent(eventId, guildId); 
-    let event;
+    const response = await getEventByID(eventId, guildId); 
     let message;
-    if (events && events.length > 0) {
-        event = events[0];
-        console.log(event);
-    } else {
-        return {error: true, message: `${eventId} doesn't exist`};
-    }
+    if (response.error) {
+        return response;
+    } 
+    const event = response.payload;
     const removedParticipant = await removeParticipantByUserID(userId, eventId, guildId);
     
     if (!removedParticipant) {
-        return {error: true, message: `Internal system error. Please contact the developer in https://discord.gg/tyaArtpytv`}
+        return {error: true, payload: `Internal system error. Please contact the developer in https://discord.gg/tyaArtpytv`}
     } else if (removedParticipant.rowCount > 0) {
         message = `<@${userId}> removed from the event`;
     } else {
-        return {error: true, message: `<@${userId}> is not in the event`};
+        return {error: true, payload: `<@${userId}> is not in the event`};
     }
     const participants = await getParticipants(eventId, guildId); 
     const embed = buildEventMessage(participants, event);
-    return {error: false, message: message, embed: embed};        
+    return {error: false, payload: message, embed: embed};        
 }
 
 export async function removeParticipantByUserID(userId, eventId, guildId) {
@@ -142,8 +139,9 @@ export async function getMyCTA(userId, guildId) {
             AND p.discord_id = $2;
         `                                                                                                   
         myCTAs = await pgClient.query(getMyCTAs, [userId, guildId]);
-    } catch {
-        return
+    } catch (error) {
+        logger.logWithContext('error', error)
+        return {error: true, payload: `Internal system error. Please contact the developer in https://discord.gg/tyaArtpytv`}
     }
     if ( myCTAs.rows.length > 0 ) {
         let message = 'Upcoming events you are signed up for: \n';
@@ -154,44 +152,45 @@ export async function getMyCTA(userId, guildId) {
                 message += `🚩 ${row.event_name} on 📅 ${row.date} at ⌚ ${row.time_utc} as ⚔️ ${row.role_name}\n`;
             } 
         }
-        return {error: false, message: message}
+        return {error: false, payload: message}
     } else {
-        return {error: true, message: `You are not signed up for any CTAs`}; 
+        return {error: true, payload: `You are not signed up for any CTAs`}; 
     }
 }
 
 export async function deleteCTA(eventId, guildId, userId, hasRole) {
-    /*
-    if (!isValidSnowflake(eventId)) {
-        return {error: true, message: `Event ID ${eventId} is not valid`};
-    }
-    const events = await getEvent(eventId, guildId); 
-    */
-    const event = await isValidEvent(eventId, guildId);
+    const event = await getEventByID(eventId, guildId);
     if (event.error) {
         return event;
     }
     if (event.user_id != userId && !hasRole) {
-        return {error: true, message: `Cancelling events is allowed only to the organizer of the event or CTABot Admin role`}
+        return {error: true, payload: `Cancelling events is allowed only to the organizer of the event or CTABot Admin role`}
     } 
     const deletedEventQuery = `DELETE FROM events WHERE event_id=$1 and discord_id=$2;`;
     try {
         await pgClient.query(deletedEventQuery, [eventId, guildId]);
-        return {error: false, message: `Event ${eventId} has been cancelled`};
+        return {error: false, payload: `Event ${eventId} has been cancelled`};
     } catch (error) {
-        return {error: true, message: `Internal system error. Please contact the developer in https://discord.gg/tyaArtpytv`}
+        return {error: true, payload: `Internal system error. Please contact the developer in https://discord.gg/tyaArtpytv`}
     }
 }
 
-export async function getEvent(eventId, guildId) {
+export async function getEventByID(eventId, guildId) {
     let event;
+    if ( !isValidSnowflake(eventId) ) {
+        return {error: true, payload: `Event ID ${eventId} is not valid`};
+    }
     try {
         const getEvent = `SELECT * FROM events WHERE event_id=$1 AND discord_id=$2`;
         event = await pgClient.query(getEvent, [eventId, guildId]);
-        return event.rows; 
+        if (event.rowCount > 0) {
+            return {error: false, payload: event.rows[0]}; 
+        } else {
+            return {error: true, payload: `Event ${eventId} doesn't exist`}
+        }
     } catch (error) {
         logger.logWithContext('error', error); 
-        return null;
+        return {error: true, payload: `Internal system error. Please contact the developer in https://discord.gg/tyaArtpytv`};
     }
 }
 
@@ -208,7 +207,7 @@ export async function isCTAExists(eventId, guildId) {
 export function buildEventMessage(eventParticipants, eventDetails) {
     const embed = new EmbedBuilder()
         .setTitle(eventDetails.event_name)
-        .setDescription(`Date: **${eventDetails.date}**\nTime (UTC): **${eventDetails.time}**`)
+        .setDescription(`Date: **${eventDetails.date}**\nTime (UTC): **${eventDetails.time_utc}**`)
         .setColor('#0099ff');
     // Group roles by party
     const groupedRoles = eventParticipants.reduce((acc, { role_id, role_name, party, user_id }) => {
@@ -299,7 +298,7 @@ export async function getParticipants(eventId, guildId) {
         return participants.rows; 
     } catch (error) {
         logger.logWithContext('error', `Error fetching participants for event ID ${eventId}`, error)
-        return {error: true, message: `Internal system error. Please contact the developer in https://discord.gg/tyaArtpytv`}
+        return {error: true, payload: `Internal system error. Please contact the developer in https://discord.gg/tyaArtpytv`}
     }
 }
 
@@ -332,15 +331,4 @@ export function isValidDate(date) {
     }
 
     return true;
-}
-
-export async function isValidEvent(eventId, guildId) {
-    if (!isValidSnowflake(eventId)) {
-        return {error: true, message: `Event ID ${eventId} is not valid`};
-    }
-    const events = await getEvent(eventId, guildId);
-    if ( events.length > 0 ) {
-        return {error: false, message: events[0]};
-    }
-    return {error: true, message: `Event ${eventId} doesn't exist`};
 }

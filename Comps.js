@@ -11,7 +11,7 @@ export async function getAllComps(guildId) {
         comps = await pgClient.query(getComps, [guildId]);
     } catch (error) {
         logger.logWithContext('error', `Error fetching compositions: ${error}`);
-        return {error: true, message: `Internal system error. Please contact the developer in https://discord.gg/tyaArtpytv`};
+        return {error: true, payload: `Internal system error. Please contact the developer in https://discord.gg/tyaArtpytv`};
     }
     if (comps.rows.length > 0) {
         message += 'Available compositions:\n';
@@ -19,9 +19,9 @@ export async function getAllComps(guildId) {
             message += `${row.comp_name}\n`;
         }
     } else {
-        return {error: false, message: 'No comps found'}
+        return {error: false, payload: 'No comps found'}
     }
-    return {error: false, message: message}
+    return {error: false, payload: message}
 }
 
 export async function getCompbyName(compName, guildId) {
@@ -29,13 +29,13 @@ export async function getCompbyName(compName, guildId) {
     try {
         const compositions = await pgClient.query(getComps, [compName, guildId]);
         if ( compositions.rows.length === 0) {
-            return {error: true, message: `Composition ${compName} not found`};
+            return {error: true, payload: `Composition ${compName} not found`};
         }
         
         return compositions.rows;
     } catch (error) {
         logger.logWithContext('error', `Error fetching compositions for event ID ${compName}`, error)
-        return {error: true, message: `Internal system error. Please contact the developer in https://discord.gg/tyaArtpytv`}
+        return {error: true, payload: `Internal system error. Please contact the developer in https://discord.gg/tyaArtpytv`}
     }
 }
 
@@ -51,7 +51,7 @@ export async function getCompRoles(compName, guildId) {
         roles = await pgClient.query(getCompRoles, [guildId, compName]);
     } catch (error) {
         logger.logWithContext('error',`Error fetching composition: ${error}`);
-        return {error: true, message: `Internal system error. Please contact the developer in https://discord.gg/tyaArtpytv`};
+        return {error: true, payload: `Internal system error. Please contact the developer in https://discord.gg/tyaArtpytv`};
     }
     if (roles.rows.length > 0) {
         response += `Roles in composition "${compName}":\n`;
@@ -59,9 +59,9 @@ export async function getCompRoles(compName, guildId) {
             response += `${row.role_name};`;
         }
     } else {
-        return {error: true, message: `Composition "${compName}" does not exist.`};
+        return {error: true, payload: `Composition "${compName}" does not exist.`};
     }
-    return {error: false, message: response};
+    return {error: false, payload: response};
 }
 
 export async function newComp(compName, compRoles, guildId, userId) {
@@ -84,7 +84,7 @@ export async function newComp(compName, compRoles, guildId, userId) {
     }
     if (comp.length > 0 ) {
         // Composition exists
-        return {error: true, message: `Composition ${compName} already exists`};
+        return {error: true, payload: `Composition ${compName} already exists`};
     } 
     try {
         // Start a transaction to insert the composition and its roles
@@ -111,12 +111,12 @@ export async function newComp(compName, compRoles, guildId, userId) {
         }
         // Commit the transaction
         await pgClient.query('COMMIT');
-        message = {error: false, message: `Composition "${compName}" created and stored in the database!`};
+        message = {error: false, payload: `Composition "${compName}" created and stored in the database!`};
     } catch (error) {
         // Rollback in case of error
         await pgClient.query('ROLLBACK');
         logger.logWithContext('error',`Error inserting composition into DB: ${error.stack}`);
-        message = {error: true, message: `Internal system error. Please contact the developer in https://discord.gg/tyaArtpytv`};
+        message = {error: true, payload: `Internal system error. Please contact the developer in https://discord.gg/tyaArtpytv`};
     }
     return message       
 }
@@ -128,7 +128,7 @@ export async function getCompByName(compName, guildId) {
         comp = await pgClient.query(checkComp, [guildId, compName]);
     } catch (error) {
         logger.logWithContext('error', `Error when getting composition ${compName}: ${error}`);
-        return {error: true, message: `Internal system error. Please contact the developer in https://discord.gg/tyaArtpytv`};
+        return {error: true, payload: `Internal system error. Please contact the developer in https://discord.gg/tyaArtpytv`};
     }
     return comp.rows;
 }
@@ -140,10 +140,10 @@ export async function deleteComp(compName, guildId, userId, hasRole) {
         return comp; 
     }
     if (comp.length === 0) {
-        return {error: true, message: `Comp ${compName} doesn't exist`};
+        return {error: true, payload: `Comp ${compName} doesn't exist`};
     }
     if (comp[0].owner !== userId || !hasRole) {
-        return {error: true, message: `Only composition owner or user with CTABot Admin role can edit this`};
+        return {error: true, payload: `Only composition owner or user with CTABot Admin role can edit this`};
     }
     try {
         await pgClient.query('BEGIN');
@@ -155,10 +155,10 @@ export async function deleteComp(compName, guildId, userId, hasRole) {
         const deleteComp = `DELETE FROM compositions WHERE discord_id = $1 AND comp_name = $2;`;
         await pgClient.query(deleteComp, [guildId, compName]);
         await pgClient.query('COMMIT');
-        message = {error: false, message: `Comp ${compName} has been deleted`};
+        message = {error: false, payload: `Comp ${compName} has been deleted`};
     } catch (error) {
         logger.logWithContext(`Error deleting composition ${compName}: ${error}`);
-        message = {error: true, message: `Internal system error. Please contact the developer in https://discord.gg/tyaArtpytv`}
+        message = {error: true, payload: `Internal system error. Please contact the developer in https://discord.gg/tyaArtpytv`}
     }
     return message;
 }

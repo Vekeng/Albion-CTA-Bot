@@ -1,5 +1,5 @@
 {
-  "name": "discord-bot",
+  "name": "ctabot",
   "version": "1.0.0",
   "description": "",
   "main": "bot.js",
@@ -9,15 +9,24 @@
     "discord.js": "^14.16.3",
     "dotenv": "^16.4.5",
     "pg": "^8.13.1",
-    "tesseract.js": "^5.1.1"
+    "tesseract.js": "^5.1.1",
+    "winston": "^3.17.0"
   },
   "scripts": {
     "test": "node bot.js"
   },
   "keywords": [],
-  "author": "",
+  "author": "GroovyGrims",
   "license": "ISC",
   "devDependencies": {
     "jest": "^29.7.0"
-  }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Vekeng/Albion-CTA-Bot.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Vekeng/Albion-CTA-Bot/issues"
+  },
+  "homepage": "https://github.com/Vekeng/Albion-CTA-Bot#readme"
 }

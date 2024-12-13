@@ -17,7 +17,4 @@ COPY . ./
 # EXPOSE 3000
 
 # Command to run the bot
-CMD ["node", "bot.js"]  # Replace 'your-bot-file.js' with the actual entry point of your bot
-
-# Create persistent volumes for botData.json and roles.json
-VOLUME /usr/src/app/json
+CMD ["node", "bot.js"] 

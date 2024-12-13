@@ -13,7 +13,7 @@ import Tesseract from 'tesseract.js';
 import dotenv from 'dotenv';
 
 // Internal modules
-import { botQueries, connectDb, disconnectDb, pgClient } from './postgres.js';
+import { connectDb, disconnectDb, pgClient } from './postgres.js';
 import { logger } from './winston.js';
 import { commands } from './commands.js';
 import * as CTAManager from './Event.js';
@@ -125,13 +125,13 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                     const [action, eventId] = interaction.customId.split('|');
                     let response = '';
                     const eventDetails = await CTAManager.getEventByID(eventId, guildId);
-                    if (userId != eventDetails.user_id && !hasRole) {
+                    if (userId != eventDetails.value.user_id && !hasRole) {
                         return await interaction.reply({ content: `Cancelling events is allowed only to the organizer of the event or CTABot Admin role`, ephemeral: true });
                     }
                     const participants = await CTAManager.getParticipants(eventId, guildId);
                     let attention = `<@${userId}> calls to arms! 🔔 `;
-                    if (participants.length > 0) {
-                        for ( const participant of participants ) {
+                    if (participants.value.length > 0) {
+                        for ( const participant of participants.value ) {
                             if (participant.user_id != null ) {
                                 response += `<@${participant.user_id}> `;
                             }
@@ -148,22 +148,29 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                 // Handle Leave Button
                 if (interaction.customId.startsWith('leaveCTA')) {
                     const [action, eventId] = interaction.customId.split('|');
-                    const eventMessage = await CTAManager.getMessage(interaction, eventId)
-                    const result = await CTAManager.leaveCTA(userId, eventId, guildId)
-                    if (!result.error) {
-                        await eventMessage.edit({ embeds: [result.embed] });                        
+                    let eventMessage;
+                    const event = await CTAManager.getEventAndMessage(interaction, eventId, guildId)
+                    if (event.success) {
+                        eventMessage = event.value.eventMessage;
+                    } else {
+                        return await interaction.reply({ content: event.error, ephemeral: true });
                     }
-                    await interaction.reply({ content: result.payload, ephemeral: true });
+                    const result = await CTAManager.leaveCTA(userId, eventId, guildId)
+                    if (!result.success) {
+                        return await interaction.reply({ content: result.error, ephemeral: true });
+                    }
+                    await eventMessage.edit({ embeds: [result.value.embed] }); 
+                    return await interaction.reply({ content: result.value.message, ephemeral: true });                           
                 }
                 // Handle Join Button 
                 if (interaction.customId.startsWith('joinCTA')) {
                     const [action, eventId, compName] = interaction.customId.split('|');
                     const options = [];
-                    const eventMessage = await CTAManager.getMessage(interaction, eventId); 
-                    const eventResponse = await CTAManager.getEventByID(eventId, guildId);
-                    if ( eventResponse.error ) {
-                        return eventResponse;
+                    const event = await CTAManager.getEventAndMessage(interaction, eventId, guildId);
+                    if ( !event.success ) {
+                        return await interaction.reply({content: event.error, ephemeral: true});
                     }
+                    
                     let availableParties; 
                     try {
                         const getParties = `
@@ -190,7 +197,7 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                         availableParties = await pgClient.query(getParties, [eventId, guildId]);
                     } catch (error) {
                         logger.logWithContext('error', error);
-                        return await interaction.reply({content: `Internal system error. Please contact the developer in https://discord.gg/tyaArtpytv`, ephemeral: true});
+                        return await interaction.reply({content: `Internal system error.`, ephemeral: true});
                     }
                     if (availableParties.rowCount === 0) {
                         return await interaction.reply({content: `There are no free roles left`, ephemeral: true});
@@ -220,14 +227,20 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                 if (interaction.customId.startsWith('joinCTARole')) {
                     const [action, eventId, compName, party] = interaction.customId.split('|');
                     const [roleId, roleName] = interaction.values[0].split('|');
-                    const eventMessage = await CTAManager.getMessage(interaction, eventId); 
+                    const event = await CTAManager.getEventAndMessage(interaction, eventId, guildId); 
+                    let eventMessage;
+                    if (event.success) {
+                        eventMessage = event.value.eventMessage; 
+                    } else {
+                        return await interaction.update({content: event.error, ephemeral: true});
+                    }                   
                     let participant;
                     try {
                         const checkParticipant = `SELECT * FROM participants WHERE role_id=$1 AND event_id=$2 AND discord_id=$3`; 
                         participant = await pgClient.query(checkParticipant, [roleId, eventId, guildId]);
                     } catch (error) {
                         logger.logWithContext('error', error);
-                        return await interaction.update({content: `Internal system error. Please contact the developer in https://discord.gg/tyaArtpytv`, ephemeral: true});
+                        return await interaction.update({content: `Internal system error. `, ephemeral: true});
                     }
                     if (participant.rowCount === 1 ) {
                         const participantDetails = participant.rows[0];
@@ -254,7 +267,7 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                     const participants = await CTAManager.getParticipants(eventId, guildId); 
                     const eventDetails = await CTAManager.getEventByID(eventId, guildId); 
                     // Rebuild the event post
-                    const embed = CTAManager.buildEventMessage(participants, eventDetails.payload);
+                    const embed = CTAManager.buildEventMessage(participants.value, eventDetails.value);
                     let message; 
                     if ( removeResult.rowCount === 1 ) {
                         message = `You have switched the role to ${roleId}. ${roleName}`;
@@ -275,12 +288,38 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                 if (interaction.customId.startsWith('joinCTAParty')) {
                     const [action, eventId, compName] = interaction.customId.split('|');
                     const party = interaction.values[0];
+                    const event = await CTAManager.getEventAndMessage(interaction, eventId, guildId); 
+                    if ( !event.success ) {
+                        return await interaction.reply({content: event.error, ephemeral: true});
+                    }
                     let availableRoles;
                     try {
-                        availableRoles = await pgClient.query(botQueries.GET_AVAILABLE_ROLES_IN_PARTY, [eventId, guildId, party]);
+                        const availableRolesQuery = `
+                            SELECT r.role_id, r.role_name
+                            FROM
+                            roles r
+                            JOIN
+                            events e
+                            ON
+                            r.comp_name = e.comp_name
+                            AND r.discord_id = e.discord_id
+                            LEFT JOIN
+                            participants p
+                            ON
+                            p.role_id = r.role_id
+                            AND p.discord_id = r.discord_id
+                            AND p.comp_name = r.comp_name
+                            AND p.event_id = e.event_id
+                            WHERE
+                            e.event_id = $1
+                            AND e.discord_id = $2
+                            AND p.user_id IS NULL
+                            AND r.party = $3;
+                        `; 
+                        availableRoles = await pgClient.query(availableRolesQuery, [eventId, guildId, party]);
                     } catch (error) {
                         logger.logWithContext('error', error); 
-                        return await interaction.reply({content: `Internal system error. Please contact the developer in https://discord.gg/tyaArtpytv`, ephemeral: true});
+                        return await interaction.reply({content: `Internal system error`, ephemeral: true});
                     }
                     if ( availableRoles.rowCount === 0 ) {
                         return await interaction.reply({content: `There are no free roles left`, ephemeral: true});
@@ -340,24 +379,29 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                     const eventId = options.getString('eventid');   
                     const rolesString = options.getString('roles');
                     const roles =  rolesString.split(",").filter(item => item !== "");
-                    const event = await CTAManager.getEventByID(eventId, guildId); 
+                    const event = await CTAManager.getEventAndMessage(interaction, eventId, guildId);
+                    if (!event.success) {
+                        return await interaction.reply({ content: event.error, ephemeral: true });
+                    } 
                     let removedParticipants = ''; 
-                    if (!event.error) {
-                        for ( const role of roles) {
-                            const removed = await CTAManager.removeParticipantByRoleID(role, eventId, guildId); 
-                            if (removed.rowCount > 0) {
-                                removedParticipants += `<@${removed.rows[0].user_id}> removed from role ${role}.\n`;
-                            }
+                    for ( const role of roles) {
+                        const removed = await CTAManager.removeParticipantByRoleID(role, eventId, guildId);
+                        if (removed.success && removed.value.length > 0) {
+                            removedParticipants += `<@${removed.value[0].user_id}> removed from role ${role}.\n`;
                         }
-                    } else {
-                        return await interaction.reply({ content: event.payload, ephemeral: true });
                     }
                     let embed; 
-                    let eventMessage; 
                     if ( removedParticipants.length > 0 ) {
-                        eventMessage = await CTAManager.getMessage(interaction, eventId);
+                        const eventAfter = await CTAManager.getEventAndMessage(interaction, eventId, guildId);
+                        if (!eventAfter.success) {
+                            return await interaction.reply({ content: eventAfter.error, ephemeral: true });
+                        }
+                        const eventMessage = eventAfter.value.eventMessage;
                         const participants = await CTAManager.getParticipants(eventId, guildId);
-                        embed = CTAManager.buildEventMessage(participants, event.payload)
+                        if (!participants.success) {
+                            return await interaction.reply({ content: participants.error, ephemeral: true });
+                        }
+                        embed = CTAManager.buildEventMessage(participants.value, eventAfter.value.eventDetails)
                         await eventMessage.edit({ embeds: [embed] });
                         return await interaction.reply({ content: removedParticipants, ephemeral: true });
                     }
@@ -416,7 +460,7 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
 
                 if (subCommand === 'myctas') {
                     const myCTA = await CTAManager.getMyCTA(userId, guildId); 
-                    if ( myCTA.error ) {
+                    if ( !myCTA.success ) {
                         return await interaction.reply({content: myCTA.error, ephemeral: true});
                     }
                     return await interaction.reply({content: myCTA.value, ephemeral: true});
@@ -433,21 +477,23 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                     const event = await CTAManager.getEventAndMessage(interaction, eventId, guildId)
                     let eventDetails, eventMessage;
                     if (event.success) {
-                        [eventDetails, eventMessage] = event.value; 
-                        console.log(eventDetails);
+                        ({eventDetails, eventMessage} = event.value); 
                     } else {
                         return await interaction.reply({content: event.error, ephemeral: true});
                     }
                     if (userId != eventDetails.user_id && !hasRole) {
                         return await interaction.reply({ content: `Freeing roles in the event allowed only to the organizer of the event or CTABot Admin role`, ephemeral: true });
                     }
-                    const participants = await CTAManager.getParticipants(eventId, guildId); 
+                    const participants = await CTAManager.getParticipants(eventId, guildId);
+                    if (participants.success) {
+                        return await interaction.reply({content: participants.error, ephemeral: true});
+                    }
                     const removedUsers = [];
-                    for (const participant of participants) {
+                    for (const participant of participants.value) {
                         if (participant.user_id !== null ) {
                             if (!userList.has(participant.user_id)) {
                                 const response = await CTAManager.removeParticipantByUserID(participant.user_id, eventId, guildId);
-                                if (response.rowCount > 0) {
+                                if (response.success && response.value.length > 0) {
                                     removedUsers.push(participant.user_id);
                                 } 
                             }
@@ -457,8 +503,11 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                         return interaction.reply({ content: `Wow! Everyone is in comms!`, ephemeral: true });
                     } 
                     const currentParticipants = await CTAManager.getParticipants(eventId, guildId); 
+                    if (!currentParticipants.success) {
+                        return await interaction.reply({content: currentParticipants.error, ephemeral: true});
+                    }
                     
-                    const embed = CTAManager.buildEventMessage(currentParticipants, eventDetails);
+                    const embed = CTAManager.buildEventMessage(currentParticipants.value, eventDetails);
                     await eventMessage.edit({ embeds: [embed] });
                     await interaction.reply({ content: `Users ${removedUsers.map(user => `<@${user}>`).join(', ')} have been cleared.`, ephemeral: true });
                 }
@@ -467,11 +516,15 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                 if (subCommand === 'cancelcta') {
                     const eventId = options.getString('id');
                     const result = await CTAManager.deleteCTA(eventId, guildId, userId, hasRole); 
-                    if (!result.error) {
-                        const eventMessage = await CTAManager.getMessage(interaction, eventId); 
-                        eventMessage.delete(); 
+                    if (result.success) {
+                        //const event = await CTAManager.getEventAndMessage(interaction, eventId, guildId); 
+                        const event = await CTAManager.getMessage(interaction, eventId);
+                        if (event.success) {
+                            event.value.delete();  
+                            return await interaction.reply({ content: result.value, ephemeral: true});
+                        }
                     }
-                    return await interaction.reply({ content: result.payload, ephemeral: true});
+                    return await interaction.reply({ content: result.error, ephemeral: true});
                 }
                 // Handle /ctabot newcta
                 if (subCommand === 'newcta') {
@@ -481,12 +534,12 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                     const compName = options.getString('comp');
 
                     const eventMessage = await interaction.deferReply({ fetchReply: true });
-                    const result = await CTAManager.createCTA(eventMessage.id, eventName, userId, guildId, compName, date, time); 
-                    if ( !result.error ) {
-                        interaction.editReply(result.payload);
+                    const cta = await CTAManager.createCTA(eventMessage.id, eventName, userId, guildId, compName, date, time); 
+                    if ( cta.success ) {
+                        interaction.editReply(cta.value);
                     } else {
                         interaction.deleteReply();
-                        interaction.followUp({content: result.payload, ephemeral: true});
+                        interaction.followUp({content: cta.error, ephemeral: true});
                     }
                 }
                 if (subCommand === 'deletecomp') {

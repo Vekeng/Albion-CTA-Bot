@@ -4,21 +4,48 @@ import { pgClient } from './postgres.js'
 import * as CompsManager from './Comps.js';
 import { ActionRowBuilder, ButtonBuilder, ButtonStyle, Client, GatewayIntentBits, Events, StringSelectMenuBuilder, PermissionFlagsBits, EmbedBuilder } from 'discord.js';
 
+/**
+ * Creates a new Call to Arms (CTA) event.
+ *
+ * This function validates the input, inserts a new event into the database, retrieves associated participants, 
+ * and generates an embed message along with interactive buttons for the event.
+ *
+ * @async
+ * @function createCTA
+ * @param {string} eventId - A unique identifier for the event.
+ * @param {string} eventName - The name of the event.
+ * @param {string} userId - The ID of the user creating the event.
+ * @param {string} guildId - The Discord guild ID where the event is created.
+ * @param {string} compName - The composition name associated with the event.
+ * @param {string} date - The event date in DD.MM.YYYY format.
+ * @param {string} time - The event time in HH:MM format.
+ * @returns {Promise<Object>} A promise resolving to an object:
+ * - On success: `{ success: true, value: { embeds, components, ephemeral } }` containing the embed and action row.
+ * - On failure: `{ success: false, error: string }` with a descriptive error message.
+ *
+ * @example
+ * const result = await createCTA('event123', 'Raid Night', 'user456', 'guild789', 'CompA', '25.12.2024', '20:00');
+ * if (result.success) {
+ *     console.log('CTA created:', result.value);
+ * } else {
+ *     console.error('Error creating CTA:', result.error);
+ * }
+ */
 export async function createCTA(eventId, eventName, userId, guildId, compName, date, time) {
     if (!eventName || !compName || !date || !time) {
-        return {error: true, payload: 'Ivalid input: Event name, Date, Time and Comp name are required'};
+        return {success: false, error: 'Ivalid input: Event name, Date, Time and Comp name are required'};
     }
     if (eventName.length > 255) {
-        return {error: true, payload: 'Invalid event name: name should be less than 255 symbols'};
+        return {success: false, error: 'Invalid event name: name should be less than 255 symbols'};
     }
     if (!isValidDate(date)) {
-        return {error: true, payload: 'Invalid date: date should be in DD.MM.YYYY format'};
+        return {success: false, error: 'Invalid date: date should be in DD.MM.YYYY format'};
     }
     if (!isValidTime(time)) {
-        return {error: true, payload: 'Invalid time: time should be in HH:MM format'};
+        return {success: false, error: 'Invalid time: time should be in HH:MM format'};
     }
     if (!await CompsManager.isValidComp(compName, guildId)) {
-        return {error: true, payload: `Composition ${compName} doesn't exist`};
+        return {success: false, error: `Composition ${compName} doesn't exist`};
     }
     try {
         const insertEvent = `INSERT INTO events (event_id, event_name, user_id, discord_id, comp_name, date, time_utc)
@@ -26,15 +53,14 @@ export async function createCTA(eventId, eventName, userId, guildId, compName, d
         await pgClient.query(insertEvent, [eventId, eventName, userId, guildId, compName, date, time]);
     } catch (error){
         logger.logWithContext('error', `Error when inserting event ${eventId} to the database`, error);
-        return {error: true, payload: `Internal system error. Please contact the developer in https://discord.gg/tyaArtpytv`} 
+        return {success: false, error: `Internal system error.`} 
     }
-    let participants; 
-    try {
-        participants = await getParticipants(eventId, guildId); 
-    } catch (error) {
-        logger.logWithContext('error', error);
-        return {error: true, payload: error}; 
-    }
+    const response = await getParticipants(eventId, guildId);
+    if (!response.success) {
+        return {success: false, error: response.error};
+    } 
+    const participants = response.value;
+    
     const joinButton = new ButtonBuilder()
         .setCustomId(`joinCTA|${eventId}|${compName}`)
         .setLabel('Join')
@@ -63,7 +89,7 @@ export async function createCTA(eventId, eventName, userId, guildId, compName, d
     };
     const embed = buildEventMessage(participants, eventDetails);
     embed.setFooter({ text: `Event ID: ${eventId}` });
-    return { error: false, payload: {
+    return { success: true, value: {
         embeds: [embed],
         components: [actionRow],
         ephemeral: false
@@ -73,46 +99,115 @@ export async function createCTA(eventId, eventName, userId, guildId, compName, d
 export async function leaveCTA(userId, eventId, guildId) {
     const response = await getEventByID(eventId, guildId); 
     let message;
-    if (response.error) {
-        return response;
+    if (!response.success) {
+        return {success: false, error: response.error};
     } 
-    const event = response.payload;
+    const event = response.value;
     const removedParticipant = await removeParticipantByUserID(userId, eventId, guildId);
-    
-    if (!removedParticipant) {
-        return {error: true, payload: `Internal system error. Please contact the developer in https://discord.gg/tyaArtpytv`}
-    } else if (removedParticipant.rowCount > 0) {
+    if (!removedParticipant.success) {
+        return {success: false, payload: removedParticipant.error}
+    } else if (removedParticipant.value.length > 0) {
         message = `<@${userId}> removed from the event`;
     } else {
-        return {error: true, payload: `<@${userId}> is not in the event`};
+        return {success: false, error: `<@${userId}> is not in the event`};
     }
     const participants = await getParticipants(eventId, guildId); 
-    const embed = buildEventMessage(participants, event);
-    return {error: false, payload: message, embed: embed};        
+    const embed = buildEventMessage(participants.value, event);
+    return {success: true, value: {message: message, embed: embed}};        
 }
 
+/**
+ * Removes a participant from an event by their user ID.
+ *
+ * This function deletes a participant from the database based on their user ID, event ID, and guild ID.
+ * If successful, it returns the role IDs associated with the removed participant. If an error occurs, it provides an appropriate error response.
+ *
+ * @async
+ * @function removeParticipantByUserID
+ * @param {string} userId - The unique identifier of the user to be removed from the event.
+ * @param {string} eventId - The unique identifier of the event.
+ * @param {string} guildId - The Discord guild ID where the event is hosted.
+ * @returns {Promise<Object>} A promise that resolves to an object containing the result:
+ * - If successful: `{ success: true, value: Array }`, where `value` is an array of role IDs associated with the removed user.
+ * - If an unexpected error occurs: `{ success: false, error: string }` indicating an internal system error.
+ *
+ * @example
+ * const result = await removeParticipantByUserID('user123', 'event456', 'guild789');
+ * if (result.success) {
+ *     console.log('Removed roles for the participant:', result.value);
+ * } else {
+ *     console.error(result.error);
+ * }
+ */
 export async function removeParticipantByUserID(userId, eventId, guildId) {
     try {
         const removeParticipant = 'DELETE FROM participants WHERE user_id=$1 AND event_id=$2 AND discord_id=$3 RETURNING role_id';
         const participant = await pgClient.query(removeParticipant, [userId,eventId,guildId]); 
-        return participant; 
+        return {success: true, value: participant.rows}; 
     } catch (error) {
         logger.logWithContext('error', `Error removing participant ${userId} for event ID ${eventId}: ${error}`)
-        return false; 
+        return {success: false, error: `Internal system error`}; 
     }
 }
 
+/**
+ * Removes a participant from an event by their role ID.
+ *
+ * This function deletes a participant from the database based on their role ID, event ID, and guild ID.
+ * If successful, it returns the user ID of the removed participant. If an error occurs, it provides an appropriate error response.
+ *
+ * @async
+ * @function removeParticipantByRoleID
+ * @param {string} roleId - The unique identifier of the role associated with the participant.
+ * @param {string} eventId - The unique identifier of the event.
+ * @param {string} guildId - The Discord guild ID where the event is hosted.
+ * @returns {Promise<Object>} A promise that resolves to an object containing the result:
+ * - If successful: `{ success: true, value: Array }`, where `value` is an array of user IDs for the removed participants.
+ * - If an unexpected error occurs: `{ success: false, error: string }` indicating an internal system error.
+ *
+ * @example
+ * const result = await removeParticipantByRoleID('role123', 'event456', 'guild789');
+ * if (result.success) {
+ *     console.log('Removed participant(s):', result.value);
+ * } else {
+ *     console.error(result.error);
+ * }
+ */
 export async function removeParticipantByRoleID(roleId, eventId, guildId) {
     try {
         const removeParticipant = 'DELETE FROM participants WHERE role_id=$1 AND event_id=$2 AND discord_id=$3 RETURNING user_id';
         const participant = await pgClient.query(removeParticipant, [roleId,eventId,guildId]); 
-        return participant; 
+        return {success: true, value: participant.rows};
     } catch (error) {
         logger.logWithContext('error', `Error removing participant ${roleId} for event ID ${eventId}: ${error}`)
-        return false; 
+        return {success: false, error: `Internal system error`}; 
     }
 }
 
+/**
+ * Fetches a list of upcoming events (CTAs) a user is signed up for in a Discord guild.
+ *
+ * This function retrieves events and associated roles from the database where the user is a participant.
+ * It returns a formatted message summarizing the upcoming events. If no events are found, or an error occurs,
+ * it provides an appropriate error response.
+ *
+ * @async
+ * @function getMyCTA
+ * @param {string} userId - The Discord user ID of the participant.
+ * @param {string} guildId - The Discord guild ID where the events are hosted.
+ * @returns {Promise<Object>} A promise that resolves to an object containing the result:
+ * - If successful: `{ success: true, value: string }`, where `value` is a formatted string listing the user's events.
+ * - If no events are found: `{ success: false, error: string }` with an appropriate error message.
+ * - If an unexpected error occurs: `{ success: false, error: string }` indicating an internal system error.
+ *
+ * @example
+ * const result = await getMyCTA('123456789012345678', '987654321098765432');
+ * if (result.success) {
+ *     console.log(result.value);
+ * } else {
+ *     console.error(result.error);
+ * }
+ */
 export async function getMyCTA(userId, guildId) {
     let myCTAs;
     try {
@@ -159,22 +254,50 @@ export async function getMyCTA(userId, guildId) {
 }
 
 export async function deleteCTA(eventId, guildId, userId, hasRole) {
+    if (!isValidSnowflake(eventId)){
+        return {success: false, error: `Input error: event ID ${eventId} is invalid`};
+    }
     const event = await getEventByID(eventId, guildId);
-    if (event.error) {
+    if (!event.success) {
         return event;
     }
     if (event.user_id != userId && !hasRole) {
-        return {error: true, payload: `Cancelling events is allowed only to the organizer of the event or CTABot Admin role`}
+        return {success: false, error: `Cancelling events is allowed only to the organizer of the event or CTABot Admin role`}
     } 
-    const deletedEventQuery = `DELETE FROM events WHERE event_id=$1 and discord_id=$2;`;
     try {
+        const deletedEventQuery = `DELETE FROM events WHERE event_id=$1 and discord_id=$2;`;
         await pgClient.query(deletedEventQuery, [eventId, guildId]);
-        return {error: false, payload: `Event ${eventId} has been cancelled`};
+        return {success: true, value: `Event ${eventId} has been cancelled`};
     } catch (error) {
-        return {error: true, payload: `Internal system error. Please contact the developer in https://discord.gg/tyaArtpytv`}
+        logger.log('error', error)
+        return {success: false, error: `Internal system error`}
     }
 }
 
+/**
+ * Fetches an event from the database by its ID and Discord guild ID.
+ *
+ * This function queries the database to find an event matching the provided `eventId` and `guildId`.
+ * If the event exists, it returns the event details. If no event is found, or an error occurs, 
+ * it returns an appropriate error response.
+ *
+ * @async
+ * @function getEventByID
+ * @param {string} eventId - The unique identifier of the event.
+ * @param {string} guildId - The Discord guild ID associated with the event.
+ * @returns {Promise<Object>} A promise that resolves to an object containing the result:
+ * - If successful: `{ success: true, value: Object }` where `value` is the event details.
+ * - If the event is not found: `{ success: false, error: string }` with a specific error message.
+ * - If an unexpected error occurs: `{ success: false, error: string }` indicating an internal system error.
+ *
+ * @example
+ * const result = await getEventByID('event123', 'guild456');
+ * if (result.success) {
+ *     console.log('Event details:', result.value);
+ * } else {
+ *     console.error('Error fetching event:', result.error);
+ * }
+ */
 export async function getEventByID(eventId, guildId) {
     let event;
     try {
@@ -203,7 +326,7 @@ export async function getEventByID(eventId, guildId) {
  * @param {object} interaction - The interaction object, typically from a Discord bot event.
  * @param {string} eventId - The unique identifier of the event to check.
  * @param {string} guildId - The unique identifier of the guild where the event and message are located.
- * @returns {Promise<{success: boolean, values?: Array, error?: string}>} 
+ * @returns {Promise<{success: boolean, value?: Array, error?: string}>} 
  * - If successful, returns an object with `success: true` and the `values` array containing the event and message.
  * - If there are errors, returns an object with `success: false` and an error message in `error`.
  *
@@ -214,29 +337,66 @@ export async function getEventAndMessage(interaction, eventId, guildId) {
         return {success: false, error: `Input error: event ID ${eventId} is invalid`};
     }
     const eventDetails = await getEventByID(eventId, guildId); 
-    console.log('eventDetails: ', eventDetails);
     const eventMessage = await getMessage(interaction, eventId); 
-    console.log('eventMessage: ', eventMessage);
     // If both the event and message exist, returns them.
     if ( eventDetails.success && eventMessage.success ) {
-        return { success: true, value: [eventDetails.value, eventMessage.value] }
+        return { success: true, value: {eventDetails: eventDetails.value, eventMessage: eventMessage.value} }
     // if CTA exists in database, but message does not exist - delete event from the database
     } else if (eventDetails.success && !eventMessage.success) {
         await deleteCTA(eventId, guildId, 'System', true); 
         return {success: false, error: eventMessage.error};
     // if CTA doesn't exists in database, but message exists - replace event message with text that it doesn't exist
     } else if ( !eventDetails.success && eventMessage.success ) {
-        await eventMessage.edit({
+        const message = eventMessage.value;
+        await message.edit({
             content: eventDetails.error,  // The new content for the message
             embeds: [],           // Removing all embeds
             components: []        // Removing all buttons and other components
         });
         return {success: false, error: eventDetails.error};
     }
-    console.log(eventDetails.error);
     return {success: false, error: eventDetails.error};
 }
 
+/**
+ * Builds a Discord embed message summarizing event details and participants.
+ *
+ * This function generates a formatted embed message containing event details such as 
+ * the event name, date, and time. It organizes participants and roles by party, 
+ * indicating whether each role is available or assigned to a participant.
+ *
+ * @function buildEventMessage
+ * @param {Array<Object>} eventParticipants - The list of participants and their associated roles.
+ * Each participant object should have the following properties:
+ * - `role_id` {number} - The unique ID of the role.
+ * - `role_name` {string} - The name of the role.
+ * - `party` {string} - The name of the party to which the role belongs.
+ * - `user_id` {string|null} - The Discord user ID of the participant, or `null` if the role is unassigned.
+ * @param {Object} eventDetails - The details of the event.
+ * The event details object should have the following properties:
+ * - `event_name` {string} - The name of the event.
+ * - `date` {string} - The date of the event.
+ * - `time_utc` {string} - The time of the event in UTC.
+ * - `event_id` {string} - The unique identifier of the event.
+ * @returns {EmbedBuilder} A Discord embed object summarizing the event details and participants.
+ *
+ * @example
+ * const eventParticipants = [
+ *     { role_id: 1, role_name: 'Tank', party: 'Team A', user_id: '123456789012345678' },
+ *     { role_id: 2, role_name: 'Healer', party: 'Team A', user_id: null },
+ *     { role_id: 3, role_name: 'DPS', party: 'Team B', user_id: '987654321098765432' },
+ * ];
+ *
+ * const eventDetails = {
+ *     event_name: 'Epic Raid',
+ *     date: '2024-12-25',
+ *     time_utc: '18:00',
+ *     event_id: 'event123',
+ * };
+ *
+ * const embed = buildEventMessage(eventParticipants, eventDetails);
+ * console.log(embed);
+ */
 export function buildEventMessage(eventParticipants, eventDetails) {
     const embed = new EmbedBuilder()
         .setTitle(eventDetails.event_name)
@@ -273,6 +433,30 @@ export function buildEventMessage(eventParticipants, eventDetails) {
     return embed;
 }
 
+/**
+ * Fetches a specific message from a Discord channel by its ID.
+ *
+ * This function attempts to retrieve a message in the channel associated with the provided interaction.
+ * If the message does not exist or an error occurs, it returns an appropriate error response.
+ *
+ * @async
+ * @function getMessage
+ * @param {Object} interaction - The Discord interaction object, which includes information about the channel.
+ * @param {string} messageId - The unique identifier of the message to fetch.
+ * @returns {Promise<Object>} A promise that resolves to an object containing the result:
+ * - If successful: `{ success: true, value: Message }`, where `value` is the Discord `Message` object.
+ * - If the message does not exist: `{ success: false, error: string }` with an appropriate error message.
+ * - If an unexpected error occurs: `{ success: false, error: string }` indicating an internal server error.
+ *
+ * @example
+ * // Example usage:
+ * const result = await getMessage(interaction, '123456789012345678');
+ * if (result.success) {
+ *     console.log('Message retrieved:', result.value.content);
+ * } else {
+ *     console.error('Error fetching message:', result.error);
+ * }
+ */
 export async function getMessage(interaction, messageId) {
     try {
         // Try to fetch the message by its ID
@@ -289,6 +473,31 @@ export async function getMessage(interaction, messageId) {
     }
 }
 
+/**
+ * Validates whether a given value is a valid Discord Snowflake.
+ *
+ * A Snowflake is a unique identifier used by Discord. It must be a numeric string consisting
+ * of digits only and must be less than or equal to `9223372036854775807` (the maximum value
+ * of a 64-bit signed integer).
+ *
+ * @function isValidSnowflake
+ * @param {string|number} value - The value to validate as a Discord Snowflake.
+ * @returns {boolean} `true` if the value is a valid Snowflake; `false` otherwise.
+ *
+ * @example
+ * // Example usage:
+ * const valid = isValidSnowflake('123456789012345678');
+ * console.log(valid); // true
+ *
+ * const invalid = isValidSnowflake('notasnowflake');
+ * console.log(invalid); // false
+ *
+ * const invalidNumber = isValidSnowflake('9223372036854775808');
+ * console.log(invalidNumber); // false
+ *
+ * // Logs an error if the value is invalid
+ * isValidSnowflake('invalid123');
+ */
 export function isValidSnowflake(value) {
     const regex = /^\d+$/; // This regex checks for one or more digits
     if (regex.test(value) && value <= 9223372036854775807) {
@@ -299,6 +508,31 @@ export function isValidSnowflake(value) {
     }
 }
 
+/**
+ * Fetches participants and associated roles for a given event.
+ *
+ * This function queries the database to retrieve the roles and participants associated 
+ * with an event. It returns information about roles and participants, including role IDs, 
+ * role names, party assignments, and user IDs of participants.
+ *
+ * @async
+ * @function getParticipants
+ * @param {string} eventId - The unique identifier of the event.
+ * @param {string} guildId - The unique identifier of the Discord guild.
+ * @returns {Promise<Object>} An object indicating the result of the operation.
+ * - If successful, returns `{ success: true, value: Array }`, where `value` is an array 
+ *   of objects containing participant and role details.
+ * - If an error occurs, returns `{ success: false, error: string }` with an error message.
+ *
+ * @example
+ * // Example usage:
+ * const result = await getParticipants('event123', 'guild456');
+ * if (result.success) {
+ *     console.log(result.value); // Array of participants and roles
+ * } else {
+ *     console.error(result.error); // Error message
+ * }
+ */
 export async function getParticipants(eventId, guildId) {
     const getParticipants = `
         SELECT 
@@ -328,10 +562,10 @@ export async function getParticipants(eventId, guildId) {
     let participants;
     try {
         participants = await pgClient.query(getParticipants, [eventId, guildId]);
-        return participants.rows; 
+        return { success: true, value: participants.rows}; 
     } catch (error) {
         logger.logWithContext('error', `Error fetching participants for event ID ${eventId}`, error)
-        return {error: true, payload: `Internal system error. Please contact the developer in https://discord.gg/tyaArtpytv`}
+        return {success: false, error: `Internal system error`}
     }
 }
 

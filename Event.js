@@ -177,31 +177,61 @@ export async function deleteCTA(eventId, guildId, userId, hasRole) {
 
 export async function getEventByID(eventId, guildId) {
     let event;
-    if ( !isValidSnowflake(eventId) ) {
-        return {error: true, payload: `Event ID ${eventId} is not valid`};
-    }
     try {
         const getEvent = `SELECT * FROM events WHERE event_id=$1 AND discord_id=$2`;
         event = await pgClient.query(getEvent, [eventId, guildId]);
         if (event.rowCount > 0) {
-            return {error: false, payload: event.rows[0]}; 
+            return {success: true, values: event.rows[0]}; 
         } else {
-            return {error: true, payload: `Event ${eventId} doesn't exist`}
+            return {success: false, values: `Event ${eventId} doesn't exist`};
         }
     } catch (error) {
         logger.logWithContext('error', error); 
-        return {error: true, payload: `Internal system error. Please contact the developer in https://discord.gg/tyaArtpytv`};
+        return {success: true, values: `Internal system error`};
     }
 }
 
-export async function isCTAExists(eventId, guildId) {
-    const selectEventQuery = `SELECT * FROM events WHERE event_id=$1 and discord_id=$2;`;
-    const selectResult = await pgClient.query(selectEventQuery, [eventId, guildId]);
-    const eventCount = selectResult.rowCount;
-    if (eventCount === 0 ) {
-        return false;
+
+/**
+ * Checks whether a Call to Action (CTA) exists for a specific event and guild, and handles cases where the event or message might be missing.
+ * - If both the event and message exist, returns them.
+ * - If the event exists but the message doesn't, deletes the event.
+ * - If the event doesn't exist but the message does, updates the message to indicate the event no longer exists.
+ *
+ * @async
+ * @function
+ * @param {object} interaction - The interaction object, typically from a Discord bot event.
+ * @param {string} eventId - The unique identifier of the event to check.
+ * @param {string} guildId - The unique identifier of the guild where the event and message are located.
+ * @returns {Promise<{success: boolean, values?: Array, error?: string}>} 
+ * - If successful, returns an object with `success: true` and the `values` array containing the event and message.
+ * - If there are errors, returns an object with `success: false` and an error message in `error`.
+ *
+ * @throws {Error} Throws an error if there are issues with fetching event details or message (e.g., network issues, permissions).
+ */
+export async function getEventAndMessage(interaction, eventId, guildId) {
+    if (!isValidSnowflake) {
+        return {success: false, error: `Input error: event ID ${eventId} is not valid`};
     }
-    return true;
+    const eventDetails = await getEventByID(eventId, guildId); 
+    const eventMessage = await getMessage(interaction, eventId); 
+    // If both the event and message exist, returns them.
+    if ( eventDetails.success && eventMessage.success ) {
+        return { success: true, values: [eventDetails, eventMessage] }
+    // if CTA exists in database, but message does not exist - delete event from the database
+    } else if (eventDetails.success && !eventMessage.success) {
+        await deleteCTA(eventId, guildId, 'System', true); 
+        return {success: false, error: eventMessage.error};
+    // if CTA doesn't exists in database, but message exists - replace event message with text that it doesn't exist
+    } else if ( !eventDetails && eventMessage ) {
+        await eventMessage.edit({
+            content: errorMessage,  // The new content for the message
+            embeds: [],           // Removing all embeds
+            components: []        // Removing all buttons and other components
+        });
+        return {success: false, error: eventDetails.error};
+    }
+    return {success: false, error: eventDetails.error};
 }
 
 export function buildEventMessage(eventParticipants, eventDetails) {
@@ -244,14 +274,14 @@ export async function getMessage(interaction, messageId) {
     try {
         // Try to fetch the message by its ID
         const message = await interaction.channel.messages.fetch(messageId);
-        return message;  // Return message
+        return {success: true, values: message};  // Return message
     } catch (error) {
         if (error.code === 10008) {  // Unknown Message error code
             logger.logWithContext('error', `Message ${messageId} does not exist`);
-            return null;  // Return null
+            return {success: false, error: `Message ${messageId} does not exist`};  // Return null
         } else {
             logger.logWithContext('error', error);  
-            return null; 
+            return {success: false, error: `Internal server error`};
         }
     }
 }

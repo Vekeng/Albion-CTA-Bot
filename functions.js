@@ -47,3 +47,18 @@ export function extractKeywordAndTime(message, keyword) {
     // Return the calculated Unix timestamp
     return unixTimeContent;
 }
+
+export function combineDateAndTime(dateStr, timeStr) {
+    // Parse the date string (DD.MM.YYYY)
+    const [day, month, year] = dateStr.split('.').map(Number);
+  
+    // Extract hours and minutes from the UTC time string (HH:MM)
+    const [hours, minutes] = timeStr.split(':').map(Number);
+  
+    // Create a Date object with the UTC time and parsed date
+    // We need to use the format YYYY-MM-DDTHH:MM:00Z for UTC date-time
+    const dateTimeString = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}T${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:00Z`;
+    
+    // Return a Date object
+    return new Date(dateTimeString);
+}

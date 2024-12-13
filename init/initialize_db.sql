@@ -1,10 +1,10 @@
 -- PostgreSQL initialization
 
 -- Create the user if not already created
-CREATE USER ctabot WITH PASSWORD 'bulbasaur';
+-- CREATE USER ctabot WITH PASSWORD 'bulbasaur';
 
 -- Create database
-CREATE DATABASE ctabot;
+-- CREATE DATABASE ctabot;
 
 -- Grant connection privilege on the database
 GRANT CONNECT ON DATABASE ctabot TO ctabot;

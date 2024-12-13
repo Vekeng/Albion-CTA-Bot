@@ -22,8 +22,10 @@ import {
     extractKeywordAndTime 
 } from './functions.js';
 
-// Load environment variables
-dotenv.config();
+if (!process.env.BOTENV === "DOCKER") {
+    // Load environment variables from .env if not in a Docker container
+    dotenv.config();
+  }
 
 const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
 

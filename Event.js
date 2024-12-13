@@ -261,7 +261,7 @@ export async function deleteCTA(eventId, guildId, userId, hasRole) {
     if (!event.success) {
         return event;
     }
-    if (event.user_id != userId && !hasRole) {
+    if (event.value.user_id != userId && !hasRole) {
         return {success: false, error: `Cancelling events is allowed only to the organizer of the event or CTABot Admin role`}
     } 
     try {

@@ -122,28 +122,27 @@ export async function newComp(compName, compRoles, guildId, userId) {
 }
 
 export async function getCompByName(compName, guildId) {
-    let comp;
     try {
         const checkComp = `SELECT * FROM compositions WHERE discord_id = $1 AND comp_name = $2`;
-        comp = await pgClient.query(checkComp, [guildId, compName]);
+        const comp = await pgClient.query(checkComp, [guildId, compName]);
+        return {success: true, value: comp.rows[0]}
     } catch (error) {
         logger.logWithContext('error', `Error when getting composition ${compName}: ${error}`);
-        return {error: true, payload: `Internal system error`};
+        return {success: false, error: `Internal system error`};
     }
-    return comp.rows;
 }
 
 export async function deleteComp(compName, guildId, userId, hasRole) {
     const comp = await getCompByName(compName, guildId); 
     let message;
-    if (comp.error) {
-        return comp; 
+    if (!comp.success) {
+        return {success: false, error: comp.error}; 
     }
     if (comp.length === 0) {
-        return {error: true, payload: `Comp ${compName} doesn't exist`};
+        return {success: false, error: `Comp ${compName} doesn't exist`};
     }
-    if (comp[0].owner !== userId || !hasRole) {
-        return {error: true, payload: `Only composition owner or user with CTABot Admin role can edit this`};
+    if (comp.value.owner !== userId && !hasRole) {
+        return {success: false, error: `Only composition owner or user with CTABot Admin role can edit this`};
     }
     try {
         await pgClient.query('BEGIN');
@@ -155,12 +154,11 @@ export async function deleteComp(compName, guildId, userId, hasRole) {
         const deleteComp = `DELETE FROM compositions WHERE discord_id = $1 AND comp_name = $2;`;
         await pgClient.query(deleteComp, [guildId, compName]);
         await pgClient.query('COMMIT');
-        message = {error: false, payload: `Comp ${compName} has been deleted`};
+        return {success: true, value: `Comp ${compName} has been deleted`};
     } catch (error) {
         logger.logWithContext(`Error deleting composition ${compName}: ${error}`);
-        message = {error: true, payload: `Internal system error`}
+        return {success: false, error: `Internal system error`}
     }
-    return message;
 }
 
 export async function isValidComp(compName, guildId) {

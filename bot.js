@@ -424,43 +424,33 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                 }
                 // Clear users not in the Voice Channel from the roles
                 if (subCommand === 'prune') {
-                    const messageId = options.getString('eventid');
-                    if (!isValidSnowflake(messageId)) {
-                        return await interaction.reply({ content: 'No proper Event ID provided', ephemeral: true});
-                    }
-                    const eventMessage = await getMessage(interaction, messageId);
-                    if (!await eventExists(eventMessage, messageId, guildId)) {
-                        return await interaction.reply({ content: 'Event doesn\'t exist in this channel', ephemeral: true});
-                    }
-                    const { rows : eventData } = await pgClient.query(botQueries.GET_EVENT, [messageId, guildId]);
-                    const eventDetails = eventData[0]; 
-                    if (userId != eventDetails.user_id && !hasRole) {
-                        return await interaction.reply({ content: `Freeing roles in the event allowed only to the organizer of the event or CTABot Admin role`, ephemeral: true });
-                    }
-                    if (!member.voice.channel) {
-                        return interaction.reply({content: 'You are not in a voice channel!', ephemeral: true});
-                    }
-                    //const eventDetails = eventData[eventMessage.id];
-                    const { rows : participants } = await pgClient.query(botQueries.GET_EVENT_PARTICIPANTS, [messageId, guildId]);
+                    const eventId = options.getString('eventid');
                     const voiceChannel = member.voice.channel;
                     const membersInChannel = voiceChannel.members;
                     const userList = new Set(membersInChannel.map(member => member.user.id)); 
+                    const eventDetails = await CTAManager.getEventByID(eventId, guildId);
+                    const eventMessage = await CTAManager.getMessage(interaction, eventId);
+                    if (userId != eventDetails.user_id && !hasRole) {
+                        return await interaction.reply({ content: `Freeing roles in the event allowed only to the organizer of the event or CTABot Admin role`, ephemeral: true });
+                    }
+                    const participants = await CTAManager.getParticipants(eventId, guildId); 
                     const removedUsers = [];
                     for (const participant of participants) {
                         if (participant.user_id !== null ) {
                             if (!userList.has(participant.user_id)) {
-                                removedUsers.push(participant.user_id);
+                                const response = await CTAManager.removeParticipantByUserID(participant.user_id, eventId, guildId);
+                                if (response.rowCount > 0) {
+                                    removedUsers.push(participant.user_id);
+                                } 
                             }
                         }
                     }
                     if (removedUsers.length === 0 ) {
                         return interaction.reply({ content: `Wow! Everyone is in comms!`, ephemeral: true });
-                    } else { 
-                        const removeParticipantQuery = 'DELETE FROM participants WHERE user_id=ANY($1) AND event_id=$2 AND discord_id=$3';
-                        await pgClient.query(removeParticipantQuery, [removedUsers, messageId, guildId]);
-                    }
-                    const { rows : participantsAfter } = await pgClient.query(botQueries.GET_EVENT_PARTICIPANTS, [messageId, guildId]);
-                    const embed = buildEventMessage(participantsAfter, eventDetails);
+                    } 
+                    const currentParticipants = await CTAManager.getParticipants(eventId, guildId); 
+                    
+                    const embed = CTAManager.buildEventMessage(currentParticipants, eventDetails.payload);
                     await eventMessage.edit({ embeds: [embed] });
                     await interaction.reply({ content: `Users ${removedUsers.map(user => `<@${user}>`).join(', ')} have been cleared.`, ephemeral: true });
                 }

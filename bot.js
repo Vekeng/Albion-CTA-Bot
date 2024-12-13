@@ -550,7 +550,10 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                 if (subCommand === 'deletecomp') {
                     const compName = options.getString('compname');
                     const result = await CompsManager.deleteComp(compName, guildId, userId, hasRole); 
-                    return await interaction.reply({content: result.payload, ephemeral: true});
+                    if (!result.success) {
+                        return await interaction.reply({content: result.error, ephemeral: true});
+                    }
+                    return await interaction.reply({content: result.value, ephemeral: true});
                 }                
                 // Handle the /ctabot newcomp command
                 if (subCommand === 'newcomp') {

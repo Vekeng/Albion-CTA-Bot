@@ -11,7 +11,7 @@ export async function getAllComps(guildId) {
         comps = await pgClient.query(getComps, [guildId]);
     } catch (error) {
         logger.logWithContext('error', `Error fetching compositions: ${error}`);
-        return {error: true, payload: `Internal system error. Please contact the developer in https://discord.gg/tyaArtpytv`};
+        return {error: true, payload: `Internal system error`};
     }
     if (comps.rows.length > 0) {
         message += 'Available compositions:\n';
@@ -35,7 +35,7 @@ export async function getCompbyName(compName, guildId) {
         return compositions.rows;
     } catch (error) {
         logger.logWithContext('error', `Error fetching compositions for event ID ${compName}`, error)
-        return {error: true, payload: `Internal system error. Please contact the developer in https://discord.gg/tyaArtpytv`}
+        return {error: true, payload: `Internal system error`}
     }
 }
 
@@ -51,7 +51,7 @@ export async function getCompRoles(compName, guildId) {
         roles = await pgClient.query(getCompRoles, [guildId, compName]);
     } catch (error) {
         logger.logWithContext('error',`Error fetching composition: ${error}`);
-        return {error: true, payload: `Internal system error. Please contact the developer in https://discord.gg/tyaArtpytv`};
+        return {error: true, payload: `Internal system error`};
     }
     if (roles.rows.length > 0) {
         response += `Roles in composition "${compName}":\n`;
@@ -116,7 +116,7 @@ export async function newComp(compName, compRoles, guildId, userId) {
         // Rollback in case of error
         await pgClient.query('ROLLBACK');
         logger.logWithContext('error',`Error inserting composition into DB: ${error.stack}`);
-        message = {error: true, payload: `Internal system error. Please contact the developer in https://discord.gg/tyaArtpytv`};
+        message = {error: true, payload: `Internal system error`};
     }
     return message       
 }
@@ -128,7 +128,7 @@ export async function getCompByName(compName, guildId) {
         comp = await pgClient.query(checkComp, [guildId, compName]);
     } catch (error) {
         logger.logWithContext('error', `Error when getting composition ${compName}: ${error}`);
-        return {error: true, payload: `Internal system error. Please contact the developer in https://discord.gg/tyaArtpytv`};
+        return {error: true, payload: `Internal system error`};
     }
     return comp.rows;
 }
@@ -158,7 +158,7 @@ export async function deleteComp(compName, guildId, userId, hasRole) {
         message = {error: false, payload: `Comp ${compName} has been deleted`};
     } catch (error) {
         logger.logWithContext(`Error deleting composition ${compName}: ${error}`);
-        message = {error: true, payload: `Internal system error. Please contact the developer in https://discord.gg/tyaArtpytv`}
+        message = {error: true, payload: `Internal system error`}
     }
     return message;
 }

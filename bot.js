@@ -262,7 +262,7 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                     } catch (error) {
                         logger.logWithContext('error', error);
                         await pgClient.query('ROLLBACK');
-                        return await interaction.reply({content: `Internal system error. Please contact the developer in https://discord.gg/tyaArtpytv`, ephemeral: true});
+                        return await interaction.reply({content: `Internal system error`, ephemeral: true});
                     }
                     const participants = await CTAManager.getParticipants(eventId, guildId); 
                     const eventDetails = await CTAManager.getEventByID(eventId, guildId); 
@@ -383,6 +383,9 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                     if (!event.success) {
                         return await interaction.reply({ content: event.error, ephemeral: true });
                     } 
+                    if (userId != event.value.eventDetails.user_id && !hasRole) {
+                        return await interaction.reply({ content: `Freeing roles in the event allowed only to the organizer of the event or CTABot Admin role`, ephemeral: true });
+                    }
                     let removedParticipants = ''; 
                     for ( const role of roles) {
                         const removed = await CTAManager.removeParticipantByRoleID(role, eventId, guildId);

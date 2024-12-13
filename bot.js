@@ -126,29 +126,28 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                 logger.logWithContext('info',`Button pressed: ${interaction.customId}`);
                 // Handle Ping button
                 if (interaction.customId.startsWith('ctaping')) {
-                    const [action, messageId] = interaction.customId.split('|');
-                    const eventMessage = await CTAManager.getMessage(interaction, messageId); 
+                    const [action, eventId] = interaction.customId.split('|');
                     let response = '';
-                    if (!await eventExists(eventMessage, messageId, guildId)) {
-                        return await interaction.reply({ content: 'Event doesn\'t exist in this channel', ephemeral: true});
-                    }
-                    const { rows : eventData } = await pgClient.query(botQueries.GET_EVENT, [messageId, guildId]);
-                    const eventDetails = eventData[0]; 
+                    const eventDetails = await CTAManager.getEventByID(eventId, guildId);
                     if (userId != eventDetails.user_id && !hasRole) {
                         return await interaction.reply({ content: `Cancelling events is allowed only to the organizer of the event or CTABot Admin role`, ephemeral: true });
                     }
-                    const { rows : participantsRows } = await pgClient.query(botQueries.GET_EVENT_PARTICIPANTS, [messageId, guildId]);
+                    const participants = await CTAManager.getParticipants(eventId, guildId);
                     let attention = `<@${userId}> calls to arms! 🔔 `;
-                    for ( const participant of participantsRows ) {
-                        if (participant.user_id != null ) {
-                            response += `<@${participant.user_id}> `;
+                    if (participants.length > 0) {
+                        for ( const participant of participants ) {
+                            console.log(participant);
+                            if (participant.user_id != null ) {
+                                response += `<@${participant.user_id}> `;
+                            }
                         }
-                    }
-                    if (response.length > 0) {
-                        response = attention + response;
-                        return await interaction.reply({ content: response});
-                    } else {
-                        return await interaction.reply({ content: 'No one signed up, there is no one to ping 😢', ephemeral: true});
+                        
+                        if (response.length > 0) {
+                            response = attention + response;
+                            return await interaction.reply({ content: response});
+                        } else {
+                            return await interaction.reply({ content: 'No one signed up, there is no one to ping 😢', ephemeral: true});
+                        } 
                     }
                 }
                 // Handle Leave Button
@@ -257,11 +256,10 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                         await pgClient.query('ROLLBACK');
                         return await interaction.reply({content: `Internal system error. Please contact the developer in https://discord.gg/tyaArtpytv`, ephemeral: true});
                     }
-                    const eventParticipants = await CTAManager.getParticipants(eventId, guildId); 
+                    const participants = await CTAManager.getParticipants(eventId, guildId); 
                     const eventDetails = await CTAManager.getEventByID(eventId, guildId); 
                     // Rebuild the event post
-                    console.log(eventDetails.payload);
-                    const embed = CTAManager.buildEventMessage(eventParticipants, eventDetails.payload);
+                    const embed = CTAManager.buildEventMessage(participants, eventDetails.payload);
                     let message; 
                     if ( removeResult.rowCount === 1 ) {
                         message = `You have switched the role to ${roleId}. ${roleName}`;

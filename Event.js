@@ -141,7 +141,7 @@ export async function getMyCTA(userId, guildId) {
         myCTAs = await pgClient.query(getMyCTAs, [userId, guildId]);
     } catch (error) {
         logger.logWithContext('error', error)
-        return {error: true, payload: `Internal system error. Please contact the developer in https://discord.gg/tyaArtpytv`}
+        return {success: false, error: `Internal system error`}
     }
     if ( myCTAs.rows.length > 0 ) {
         let message = 'Upcoming events you are signed up for: \n';
@@ -152,9 +152,9 @@ export async function getMyCTA(userId, guildId) {
                 message += `🚩 ${row.event_name} on 📅 ${row.date} at ⌚ ${row.time_utc} as ⚔️ ${row.role_name}\n`;
             } 
         }
-        return {error: false, payload: message}
+        return {success: true, value: message}
     } else {
-        return {error: true, payload: `You are not signed up for any CTAs`}; 
+        return {success: false, error: `You are not signed up for any CTAs`}; 
     }
 }
 
@@ -181,13 +181,13 @@ export async function getEventByID(eventId, guildId) {
         const getEvent = `SELECT * FROM events WHERE event_id=$1 AND discord_id=$2`;
         event = await pgClient.query(getEvent, [eventId, guildId]);
         if (event.rowCount > 0) {
-            return {success: true, values: event.rows[0]}; 
+            return {success: true, value: event.rows[0]}; 
         } else {
-            return {success: false, values: `Event ${eventId} doesn't exist`};
+            return {success: false, error: `Event ${eventId} doesn't exist`};
         }
     } catch (error) {
         logger.logWithContext('error', error); 
-        return {success: true, values: `Internal system error`};
+        return {success: false, error: `Internal system error`};
     }
 }
 
@@ -210,27 +210,30 @@ export async function getEventByID(eventId, guildId) {
  * @throws {Error} Throws an error if there are issues with fetching event details or message (e.g., network issues, permissions).
  */
 export async function getEventAndMessage(interaction, eventId, guildId) {
-    if (!isValidSnowflake) {
-        return {success: false, error: `Input error: event ID ${eventId} is not valid`};
+    if (!isValidSnowflake(eventId)) {
+        return {success: false, error: `Input error: event ID ${eventId} is invalid`};
     }
     const eventDetails = await getEventByID(eventId, guildId); 
+    console.log('eventDetails: ', eventDetails);
     const eventMessage = await getMessage(interaction, eventId); 
+    console.log('eventMessage: ', eventMessage);
     // If both the event and message exist, returns them.
     if ( eventDetails.success && eventMessage.success ) {
-        return { success: true, values: [eventDetails, eventMessage] }
+        return { success: true, value: [eventDetails.value, eventMessage.value] }
     // if CTA exists in database, but message does not exist - delete event from the database
     } else if (eventDetails.success && !eventMessage.success) {
         await deleteCTA(eventId, guildId, 'System', true); 
         return {success: false, error: eventMessage.error};
     // if CTA doesn't exists in database, but message exists - replace event message with text that it doesn't exist
-    } else if ( !eventDetails && eventMessage ) {
+    } else if ( !eventDetails.success && eventMessage.success ) {
         await eventMessage.edit({
-            content: errorMessage,  // The new content for the message
+            content: eventDetails.error,  // The new content for the message
             embeds: [],           // Removing all embeds
             components: []        // Removing all buttons and other components
         });
         return {success: false, error: eventDetails.error};
     }
+    console.log(eventDetails.error);
     return {success: false, error: eventDetails.error};
 }
 
@@ -274,7 +277,7 @@ export async function getMessage(interaction, messageId) {
     try {
         // Try to fetch the message by its ID
         const message = await interaction.channel.messages.fetch(messageId);
-        return {success: true, values: message};  // Return message
+        return {success: true, value: message};  // Return message
     } catch (error) {
         if (error.code === 10008) {  // Unknown Message error code
             logger.logWithContext('error', `Message ${messageId} does not exist`);

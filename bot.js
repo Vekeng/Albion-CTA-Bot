@@ -415,8 +415,11 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                 }
 
                 if (subCommand === 'myctas') {
-                    const result = await CTAManager.getMyCTA(userId, guildId); 
-                    return await interaction.reply({content: result.payload, ephemeral: true});
+                    const myCTA = await CTAManager.getMyCTA(userId, guildId); 
+                    if ( myCTA.error ) {
+                        return await interaction.reply({content: myCTA.error, ephemeral: true});
+                    }
+                    return await interaction.reply({content: myCTA.value, ephemeral: true});
                 }
                 // Clear users not in the Voice Channel from the roles
                 if (subCommand === 'prune') {
@@ -427,12 +430,13 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                     }
                     const membersInChannel = voiceChannel.members;
                     const userList = new Set(membersInChannel.map(member => member.user.id)); 
-                    const cta = await CTAManager.getEventAndMessage(interaction, eventId, guildId)
+                    const event = await CTAManager.getEventAndMessage(interaction, eventId, guildId)
                     let eventDetails, eventMessage;
-                    if (cta.success) {
-                        [eventDetails, eventMessage] = cta.values; 
+                    if (event.success) {
+                        [eventDetails, eventMessage] = event.value; 
+                        console.log(eventDetails);
                     } else {
-                        return await interaction.reply({content: cta.error, ephemeral: true});
+                        return await interaction.reply({content: event.error, ephemeral: true});
                     }
                     if (userId != eventDetails.user_id && !hasRole) {
                         return await interaction.reply({ content: `Freeing roles in the event allowed only to the organizer of the event or CTABot Admin role`, ephemeral: true });
@@ -454,7 +458,7 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                     } 
                     const currentParticipants = await CTAManager.getParticipants(eventId, guildId); 
                     
-                    const embed = CTAManager.buildEventMessage(currentParticipants, eventDetails.payload);
+                    const embed = CTAManager.buildEventMessage(currentParticipants, eventDetails);
                     await eventMessage.edit({ embeds: [embed] });
                     await interaction.reply({ content: `Users ${removedUsers.map(user => `<@${user}>`).join(', ')} have been cleared.`, ephemeral: true });
                 }

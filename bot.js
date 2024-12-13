@@ -136,7 +136,6 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                     let attention = `<@${userId}> calls to arms! 🔔 `;
                     if (participants.length > 0) {
                         for ( const participant of participants ) {
-                            console.log(participant);
                             if (participant.user_id != null ) {
                                 response += `<@${participant.user_id}> `;
                             }

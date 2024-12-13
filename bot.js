@@ -1,6 +1,6 @@
 // Discord.js imports
 import { REST } from '@discordjs/rest';
-import { ActionRowBuilder, ButtonBuilder, ButtonStyle, Client, GatewayIntentBits, Events, StringSelectMenuBuilder, PermissionFlagsBits, PartialGroupDMChannel } from 'discord.js';
+import { ActionRowBuilder, Client, GatewayIntentBits, Events, StringSelectMenuBuilder, PermissionFlagsBits } from 'discord.js';
 import { Routes } from 'discord-api-types/v9';
 
 // Core modules
@@ -19,11 +19,7 @@ import { commands } from './commands.js';
 import * as CTAManager from './Event.js';
 import * as CompsManager from './Comps.js';
 import { 
-    eventExists, 
-    isValidSnowflake, 
-    //getMessage, 
-    extractKeywordAndTime, 
-    buildEventMessage 
+    extractKeywordAndTime 
 } from './functions.js';
 
 // Load environment variables
@@ -426,10 +422,18 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                 if (subCommand === 'prune') {
                     const eventId = options.getString('eventid');
                     const voiceChannel = member.voice.channel;
+                    if (!voiceChannel) {
+                        return interaction.reply({content: 'You are not in a voice channel!', ephemeral: true});
+                    }
                     const membersInChannel = voiceChannel.members;
                     const userList = new Set(membersInChannel.map(member => member.user.id)); 
-                    const eventDetails = await CTAManager.getEventByID(eventId, guildId);
-                    const eventMessage = await CTAManager.getMessage(interaction, eventId);
+                    const cta = await CTAManager.getEventAndMessage(interaction, eventId, guildId)
+                    let eventDetails, eventMessage;
+                    if (cta.success) {
+                        [eventDetails, eventMessage] = cta.values; 
+                    } else {
+                        return await interaction.reply({content: cta.error, ephemeral: true});
+                    }
                     if (userId != eventDetails.user_id && !hasRole) {
                         return await interaction.reply({ content: `Freeing roles in the event allowed only to the organizer of the event or CTABot Admin role`, ephemeral: true });
                     }

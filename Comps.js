@@ -54,7 +54,7 @@ export async function getCompRoles(compName, guildId) {
         return {error: true, payload: `Internal system error`};
     }
     if (roles.rows.length > 0) {
-        response += `Roles in composition "${compName}":\n`;
+        response = `Roles in composition "${compName}":\n`;
         for (const row of roles.rows) {
             response += `${row.role_name};`;
         }
@@ -76,16 +76,16 @@ export async function newComp(compName, compRoles, guildId, userId) {
         parties[`Party ${partyIndex + 1}`][i + 1] = rolesArray[i]; // Role ID is index + 1
     }          
     // Check if the composition already exists in the database
-    let comp;
     let message; 
-    comp = await getCompByName(compName, guildId);
-    if (comp.error) {
-        return comp; 
+    let comp = await getCompByName(compName, guildId);
+    console.log(comp.success);
+    if (comp.success) {
+        return { success: false, error: `Composition ${compName} already exists!`}
+    } else {
+        if (comp.error === 'Internal system error') {
+            return { success: false, error: comp.error}
+        }
     }
-    if (comp.length > 0 ) {
-        // Composition exists
-        return {error: true, payload: `Composition ${compName} already exists`};
-    } 
     try {
         // Start a transaction to insert the composition and its roles
         await pgClient.query('BEGIN');
@@ -111,21 +111,24 @@ export async function newComp(compName, compRoles, guildId, userId) {
         }
         // Commit the transaction
         await pgClient.query('COMMIT');
-        message = {error: false, payload: `Composition "${compName}" created and stored in the database!`};
+        return {success: true, value: `Composition "${compName}" created and stored in the database!`};
     } catch (error) {
         // Rollback in case of error
         await pgClient.query('ROLLBACK');
         logger.logWithContext('error',`Error inserting composition into DB: ${error.stack}`);
-        message = {error: true, payload: `Internal system error`};
+        return {success: false, error: `Internal system error`};
     }
-    return message       
 }
 
 export async function getCompByName(compName, guildId) {
     try {
         const checkComp = `SELECT * FROM compositions WHERE discord_id = $1 AND comp_name = $2`;
         const comp = await pgClient.query(checkComp, [guildId, compName]);
-        return {success: true, value: comp.rows[0]}
+        if (comp.rowCount > 0) {
+            return {success: true, value: comp.rows[0]}
+        } else {
+            return {success: false, error: `Composition ${compName} doesn't exist`}
+        }
     } catch (error) {
         logger.logWithContext('error', `Error when getting composition ${compName}: ${error}`);
         return {success: false, error: `Internal system error`};
@@ -137,9 +140,6 @@ export async function deleteComp(compName, guildId, userId, hasRole) {
     let message;
     if (!comp.success) {
         return {success: false, error: comp.error}; 
-    }
-    if (comp.length === 0) {
-        return {success: false, error: `Comp ${compName} doesn't exist`};
     }
     if (comp.value.owner !== userId && !hasRole) {
         return {success: false, error: `Only composition owner or user with CTABot Admin role can edit this`};

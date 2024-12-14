@@ -21,8 +21,8 @@ import * as CompsManager from './Comps.js';
 import { 
     extractKeywordAndTime 
 } from './functions.js';
-
-if (!process.env.BOTENV === "DOCKER") {
+if (process.env.BOTENV != "DOCKER") {
+  
     // Load environment variables from .env if not in a Docker container
     dotenv.config();
   }
@@ -126,8 +126,11 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                 if (interaction.customId.startsWith('ctaping')) {
                     const [action, eventId] = interaction.customId.split('|');
                     let response = '';
-                    const eventDetails = await CTAManager.getEventByID(eventId, guildId);
-                    if (userId != eventDetails.value.user_id && !hasRole) {
+                    const event = await CTAManager.getEventAndMessage(interaction, eventId, guildId);
+                    if (!event.success) {
+                        return await interaction.reply({ content: event.error, ephemeral: true });
+                    }
+                    if (userId != event.value.eventDetails.user_id && !hasRole) {
                         return await interaction.reply({ content: `Cancelling events is allowed only to the organizer of the event or CTABot Admin role`, ephemeral: true });
                     }
                     const participants = await CTAManager.getParticipants(eventId, guildId);
@@ -490,7 +493,7 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                         return await interaction.reply({ content: `Freeing roles in the event allowed only to the organizer of the event or CTABot Admin role`, ephemeral: true });
                     }
                     const participants = await CTAManager.getParticipants(eventId, guildId);
-                    if (participants.success) {
+                    if (!participants.success) {
                         return await interaction.reply({content: participants.error, ephemeral: true});
                     }
                     const removedUsers = [];
@@ -563,7 +566,11 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                         return await interaction.reply({ content: `Composition shouldn't be longer than 1600 symbols. If you really need it, consider splitting list in two or more comps.`, ephemeral: true });
                     }                
                     const result = await CompsManager.newComp(compName, rolesString, guildId, userId);
-                    return await interaction.reply({content: result.payload, ephemeral: true});
+                    if ( result.success ) {
+                        return await interaction.reply({content: result.value, ephemeral: true});
+                    } else {
+                        return await interaction.reply({content: result.error, ephemeral: true});
+                    }
                 }
                 
                 // Handle the /listcomps command
@@ -604,7 +611,7 @@ With CTABot, you can easily organize your CTAs, Outposts runs, and other content
         // Log in to Discord
         client.login(process.env.BOT_TOKEN);
     } catch (error) {
-        logger.logWithContext('critical', `${error}: ${error.stack}`);
+        logger.logWithContext('error', `${error}: ${error.stack}`);
     }
 })();
 

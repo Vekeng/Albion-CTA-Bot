@@ -41,9 +41,9 @@ export async function createCTA(eventId, eventName, userId, guildId, compName, d
     if (!isValidDate(date)) {
         return {success: false, error: 'Invalid date: date should be in DD.MM.YYYY format'};
     }
-    if (!isValidTime(time)) {
-        return {success: false, error: 'Invalid time: time should be in HH:MM format'};
-    }
+    //if (!isValidTime(time)) {
+    //    return {success: false, error: 'Invalid time: time should be in HH:MM format'};
+    //}
     if (!await CompsManager.isValidComp(compName, guildId)) {
         return {success: false, error: `Composition ${compName} doesn't exist`};
     }

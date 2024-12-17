@@ -557,7 +557,8 @@ export async function getParticipants(eventId, guildId) {
         WHERE
             e.event_id = $1
         AND
-            e.discord_id = $2;
+            e.discord_id = $2
+        ORDER BY r.role_id;
     `;
     let participants;
     try {

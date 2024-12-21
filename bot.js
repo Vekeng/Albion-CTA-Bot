@@ -540,7 +540,21 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                     const date = options.getString('date');
                     const time = options.getString('time');
                     const compName = options.getString('comp');
-
+                    if (!eventName || !compName || !date || !time) {
+                        return interaction.reply({content: 'Ivalid input: Event name, Date, Time and Comp name are required', ephemeral: true});
+                    }
+                    if (eventName.length > 255) {
+                        return interaction.reply({content: 'Invalid event name: name should be less than 255 symbols', ephemeral: true});
+                    }
+                    if (!isValidDate(date)) {
+                        return interaction.reply({content: 'Invalid date: date should be in DD.MM.YYYY format', ephemeral: true});
+                    }
+                    //if (!isValidTime(time)) {
+                    //    return {success: false, error: 'Invalid time: time should be in HH:MM format'};
+                    //}
+                    if (!await CompsManager.isValidComp(compName, guildId)) {
+                        return interaction.reply({content: `Composition ${compName} doesn't exist`, ephemeral: true});
+                    }
                     const eventMessage = await interaction.deferReply({ fetchReply: true });
                     const cta = await CTAManager.createCTA(eventMessage.id, eventName, userId, guildId, compName, date, time); 
                     if ( cta.success ) {

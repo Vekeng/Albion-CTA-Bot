@@ -32,21 +32,6 @@ import { ActionRowBuilder, ButtonBuilder, ButtonStyle, Client, GatewayIntentBits
  * }
  */
 export async function createCTA(eventId, eventName, userId, guildId, compName, date, time) {
-    if (!eventName || !compName || !date || !time) {
-        return {success: false, error: 'Ivalid input: Event name, Date, Time and Comp name are required'};
-    }
-    if (eventName.length > 255) {
-        return {success: false, error: 'Invalid event name: name should be less than 255 symbols'};
-    }
-    if (!isValidDate(date)) {
-        return {success: false, error: 'Invalid date: date should be in DD.MM.YYYY format'};
-    }
-    //if (!isValidTime(time)) {
-    //    return {success: false, error: 'Invalid time: time should be in HH:MM format'};
-    //}
-    if (!await CompsManager.isValidComp(compName, guildId)) {
-        return {success: false, error: `Composition ${compName} doesn't exist`};
-    }
     try {
         const insertEvent = `INSERT INTO events (event_id, event_name, user_id, discord_id, comp_name, date, time_utc)
                                 VALUES ($1, $2, $3, $4, $5, $6, $7);`

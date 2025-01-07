@@ -546,7 +546,7 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                     if (eventName.length > 255) {
                         return interaction.reply({content: 'Invalid event name: name should be less than 255 symbols', ephemeral: true});
                     }
-                    if (!isValidDate(date)) {
+                    if (!CTAManager.isValidDate(date)) {
                         return interaction.reply({content: 'Invalid date: date should be in DD.MM.YYYY format', ephemeral: true});
                     }
                     //if (!isValidTime(time)) {

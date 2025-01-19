@@ -25,6 +25,17 @@ const commands = [
             }]
         },
         {
+            type: 1, 
+            name: 'missing',
+            description: 'Ping people signed up for the event that are not in VC',
+            options: [{
+                type: 3,
+                name: 'eventid',
+                description: 'Event ID',
+                required: true
+            }]
+        },
+        {
             name: 'help',
             description: 'How to use CTA BOT',
             type: 1

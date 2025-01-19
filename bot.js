@@ -520,6 +520,49 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                     await interaction.reply({ content: `Users ${removedUsers.map(user => `<@${user}>`).join(', ')} have been cleared.`, ephemeral: true });
                 }
 
+                if (subCommand === 'missing') {
+                    const eventId = options.getString('eventid');
+                    const voiceChannel = member.voice.channel;
+                    if (!voiceChannel) {
+                        return interaction.reply({content: 'You are not in a voice channel!', ephemeral: true});
+                    }
+                    const membersInChannel = voiceChannel.members;
+                    const userList = new Set(membersInChannel.map(member => member.user.id)); 
+                    const event = await CTAManager.getEventAndMessage(interaction, eventId, guildId)
+                    let eventDetails, eventMessage;
+                    if (event.success) {
+                        ({eventDetails, eventMessage} = event.value); 
+                    } else {
+                        return await interaction.reply({content: event.error, ephemeral: true});
+                    }
+                    //if (userId != eventDetails.user_id && !hasRole) {
+                    //    return await interaction.reply({ content: `Freeing roles in the event allowed only to the organizer of the event or CTABot Admin role`, ephemeral: true });
+                    //}
+                    const participants = await CTAManager.getParticipants(eventId, guildId);
+                    if (!participants.success) {
+                        return await interaction.reply({content: participants.error, ephemeral: true});
+                    }
+                    const missingUsers = [];
+                    for (const participant of participants.value) {
+                        if (participant.user_id !== null ) {
+                            if (!userList.has(participant.user_id)) {
+                                missingUsers.push(participant.user_id);
+                            }
+                        }
+                    }
+                    if (missingUsers.length === 0 ) {
+                        return interaction.reply({ content: `Wow! Everyone is in comms!`, ephemeral: true });
+                    } 
+                    //const currentParticipants = await CTAManager.getParticipants(eventId, guildId); 
+                    //if (!currentParticipants.success) {
+                    //    return await interaction.reply({content: currentParticipants.error, ephemeral: true});
+                    //}
+                    
+                    //const embed = CTAManager.buildEventMessage(currentParticipants.value, eventDetails);
+                    //await eventMessage.edit({ embeds: [embed] });
+                    await interaction.reply({ content: `${missingUsers.map(user => `<@${user}>`).join(', ')} are missing.`});
+                }
+
                 // Handle /ctabot cancelcta
                 if (subCommand === 'cancelcta') {
                     const eventId = options.getString('id');
@@ -608,13 +651,15 @@ It helps players create and manage events and track participants.
 With CTABot, you can easily organize your CTAs, Outposts runs, and other content.
 
 **Available Commands**
+- **/ctabot myctas**: List of an upcoming events user signed up for.
 - **/ctabot newcta <name> <date> <time> <comp>**: Create a new event post with details like event name, date, time, and comp.
 - **/ctabot newcomp <name> <list of roles>**: Create a new composition with a list of roles separated by semicolons \`;\`. If the list includes more than 20 roles, they will be split into two or more parties.
-- **/ctabot deletecomp <compname>**: Deletes specified comp. Allowed only to "CTABot Admin" Role
+- **/ctabot deletecomp <compname>**: Deletes specified comp. Allowed only to "CTABot Admin" Role or owner of the composition. 
 - **/ctabot listcomps**: List all compositions available or view roles in a specific composition.
 - **/ctabot cancelcta <eventId>**: Remove an event with the specified ID. Event ID can be found at the bottom of the event post.
-- **/ctabot clearroles <eventId>**: Clear a specified list of roles in a specific event ID. The ID can be found at the bottom of the event post.
-- **/ctabot prune <eventId>**: Removes people who are not in the current voice channel from their roles. 
+- **/ctabot clearroles <eventId> <roles>**: Clear specified list of roles in a specific event ID. The ID can be found at the bottom of the event post.
+- **/ctabot prune <eventId>**: Removes people who are signed up for the event from their roles, if they are not in current voice channel. 
+- **/ctabot missing <eventId>**: Pings people who are signed up for the event, but not in the current voice channel. 
 - **/ctabot ocr <image>**: Posts and event with dynamic countdown. Image should be screenshot of an event, like Power Vortex, Power Anomaly, Pristine Resource. It recognizes only text you can see when clicking on an event on the global map. 
 `;
                     await interaction.reply({content: response, ephemeral: true});

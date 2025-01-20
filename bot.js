@@ -535,9 +535,9 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                     } else {
                         return await interaction.reply({content: event.error, ephemeral: true});
                     }
-                    //if (userId != eventDetails.user_id && !hasRole) {
-                    //    return await interaction.reply({ content: `Freeing roles in the event allowed only to the organizer of the event or CTABot Admin role`, ephemeral: true });
-                    //}
+                    if (userId != eventDetails.user_id && !hasRole) {
+                        return await interaction.reply({ content: `Pinging missing roles in the event is allowed only to the organizer of the event or CTABot Admin role`, ephemeral: true });
+                    }
                     const participants = await CTAManager.getParticipants(eventId, guildId);
                     if (!participants.success) {
                         return await interaction.reply({content: participants.error, ephemeral: true});

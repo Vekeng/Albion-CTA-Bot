@@ -646,22 +646,44 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                 
                 if (subCommand === 'help') {
                     const response = `
-**CTABot** is a Discord bot designed for managing Guild events in Albion Online. 
-It helps players create and manage events and track participants. 
-With CTABot, you can easily organize your CTAs, Outposts runs, and other content.
+**CTABot** is a Discord bot for managing Guild events in Albion Online. It helps organize CTAs, Outpost runs, and other content.
 
-**Available Commands**
-- **/ctabot myctas**: List of an upcoming events user signed up for.
-- **/ctabot newcta <name> <date> <time> <comp>**: Create a new event post with details like event name, date, time, and comp.
-- **/ctabot newcomp <name> <list of roles>**: Create a new composition with a list of roles separated by semicolons \`;\`. If the list includes more than 20 roles, they will be split into two or more parties.
-- **/ctabot deletecomp <compname>**: Deletes specified comp. Allowed only to "CTABot Admin" Role or owner of the composition. 
-- **/ctabot listcomps**: List all compositions available or view roles in a specific composition.
-- **/ctabot cancelcta <eventId>**: Remove an event with the specified ID. Event ID can be found at the bottom of the event post.
-- **/ctabot clearroles <eventId> <roles>**: Clear specified list of roles in a specific event ID. The ID can be found at the bottom of the event post.
-- **/ctabot prune <eventId>**: Removes people who are signed up for the event from their roles, if they are not in current voice channel. 
-- **/ctabot missing <eventId>**: Pings people who are signed up for the event, but not in the current voice channel. 
-- **/ctabot ocr <image>**: Posts and event with dynamic countdown. Image should be screenshot of an event, like Power Vortex, Power Anomaly, Pristine Resource. It recognizes only text you can see when clicking on an event on the global map. 
+## General
+Add key players (e.g., shotcallers, admins) to the CTABot Admin role for managing and canceling events created by others.
+
+## Composition Management
+1. **Create Composition**:  
+   \`/ctabot newcomp compname:<name> comproles:role1;role2;role3\`  
+   Replace \`<name>\` with a name and list roles separated by \`;\`.  
+   Example: \`/ctabot newcomp compname:5ManGroup comproles:Tank;Healer;DPS;DPS;DPS\`  
+   Compositions with over 20 roles are split into multiple parties.  
+2. **View Compositions**:  
+   \`/ctabot listcomps\` or \`/ctabot listcomps compname:<name>\`.  
+3. **Delete Composition**:  
+   \`/ctabot deletecomp compname:<name>\` (Admins can delete any composition).  
+   **WARNING**: Avoid deleting compositions used in upcoming events as it may break them. Cancel events using the composition first with \`/ctabot cancelcta id:<eventid>\`.  
+   **Tip**: To edit, delete the old comp and create a new one with updated roles.
+
+## Event Management
+1. **Create Event**:  
+   \`/ctabot newcta eventname:<title> date:<DD.MM.YYYY> time:<time> comp:<compname>\`  
+   Event ID is shown at the bottom of the event form.  
+2. **Cancel Event**:  
+   \`/ctabot cancelcta id:<eventid>\` (Admins can cancel any event).  
+3. **Ping Signups**: Use the **Ping** button on the event form (Admins only).  
+4. **Clear Roles**:  
+   \`/ctabot clearroles eventid:<eventid> roles:<role1,role2>\`  
+5. **Check Missing Players**:  
+   \`/ctabot missing eventid:<eventid>\` to ping absent players. Use \`/ctabot prune eventid:<eventid>\` to free their roles.
+
+## For Players
+1. Join events using the **Join** button, selecting your party and role.  
+2. Leave events using the **Leave** button.  
+3. View your events with \`/ctabot myctas\`.
+
+**Detailed Guide**: [Click here for the full guide](https://example.com)
 `;
+
                     await interaction.reply({content: response, ephemeral: true});
                 }              
             }

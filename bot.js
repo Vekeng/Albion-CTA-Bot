@@ -649,13 +649,12 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
 **CTABot** is a Discord bot for managing Guild events in Albion Online. It helps organize CTAs, Outpost runs, and other content.
 
 ## General
-Add key players (e.g., shotcallers, admins) to the CTABot Admin role for managing and canceling events created by others.
+Add key players (e.g., shotcallers, admins) to the \`CTABot Admin\` role for managing and canceling events created by others.
 
 ## Composition Management
 1. **Create Composition**:  
    \`/ctabot newcomp compname:<name> comproles:role1;role2;role3\`  
-   Replace \`<name>\` with a name and list roles separated by \`;\`.  
-   Example: \`/ctabot newcomp compname:5ManGroup comproles:Tank;Healer;DPS;DPS;DPS\`  
+   List of roles must be separated by \`;\' and must be less than 1600 characters.   
    Compositions with over 20 roles are split into multiple parties.  
 2. **View Compositions**:  
    \`/ctabot listcomps\` or \`/ctabot listcomps compname:<name>\`.  
@@ -667,10 +666,10 @@ Add key players (e.g., shotcallers, admins) to the CTABot Admin role for managin
 ## Event Management
 1. **Create Event**:  
    \`/ctabot newcta eventname:<title> date:<DD.MM.YYYY> time:<time> comp:<compname>\`  
-   Event ID is shown at the bottom of the event form.  
+   Event ID is shown at the bottom of the event form. You will need it for other event-related commands.   
 2. **Cancel Event**:  
    \`/ctabot cancelcta id:<eventid>\` (Admins can cancel any event).  
-3. **Ping Signups**: Use the **Ping** button on the event form (Admins only).  
+3. **Ping Signups**: Use the **Ping** button on the event form (Only event organizer and Admins).  
 4. **Clear Roles**:  
    \`/ctabot clearroles eventid:<eventid> roles:<role1,role2>\`  
 5. **Check Missing Players**:  
@@ -681,8 +680,9 @@ Add key players (e.g., shotcallers, admins) to the CTABot Admin role for managin
 2. Leave events using the **Leave** button.  
 3. View your events with \`/ctabot myctas\`.
 
-**Detailed Guide**: [Click here for the full guide](https://example.com)
+[**Detailed Guide**](https://gist.github.com/Vekeng/b69d35375e67f5db36f73f7d520d4914)
 `;
+
 
                     await interaction.reply({content: response, ephemeral: true});
                 }              

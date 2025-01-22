@@ -328,17 +328,17 @@ export async function getEventAndMessage(interaction, eventId, guildId) {
         return { success: true, value: {eventDetails: eventDetails.value, eventMessage: eventMessage.value} }
     // if CTA exists in database, but message does not exist - delete event from the database
     } else if (eventDetails.success && !eventMessage.success) {
-        await deleteCTA(eventId, guildId, 'System', true); 
+        //await deleteCTA(eventId, guildId, 'System', true); 
         return {success: false, error: eventMessage.error};
     // if CTA doesn't exists in database, but message exists - replace event message with text that it doesn't exist
-    } else if ( !eventDetails.success && eventMessage.success ) {
-        const message = eventMessage.value;
-        await message.edit({
-            content: eventDetails.error,  // The new content for the message
-            embeds: [],           // Removing all embeds
-            components: []        // Removing all buttons and other components
-        });
-        return {success: false, error: eventDetails.error};
+    //} else if ( !eventDetails.success && eventMessage.success ) {
+        //const message = eventMessage.value;
+        //await message.edit({
+        //    content: eventDetails.error,  // The new content for the message
+        //    embeds: [],           // Removing all embeds
+        //    components: []        // Removing all buttons and other components
+        //});
+        //return {success: false, error: eventDetails.error};
     }
     return {success: false, error: eventDetails.error};
 }

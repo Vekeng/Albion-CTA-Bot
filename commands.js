@@ -147,6 +147,35 @@ const commands = [
                 description: 'Composition name',
                 required: true,
             }],
+        }, 
+        {
+            type: 1, 
+            name: 'editcta',
+            description: 'Edit title/date/time for existing event',
+            options: [{
+                name: 'eventid',
+                type: 3, // STRING
+                description: 'Event ID',
+                required: true,
+            },
+            {
+                name: 'eventname',
+                type: 3, // STRING
+                description: 'Name of the event',
+                required: false,
+            },
+            {
+                name: 'date',
+                type: 3, // STRING
+                description: 'Date of the event in DD.MM.YYYY format',
+                required: false,
+            },
+            {
+                name: 'time',
+                type: 3, // STRING
+                description: 'Time in HH:MM format',
+                required: false,
+            }],
         }]
     },
 ];

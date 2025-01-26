@@ -577,6 +577,46 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                     }
                     return await interaction.reply({ content: result.error, ephemeral: true});
                 }
+
+                if (subCommand === 'editcta') {
+                    const eventId = options.getString('eventid');
+                    const eventName = options.getString('eventname');
+                    const date = options.getString('date');
+                    const time = options.getString('time');
+                    
+                    const event = await CTAManager.getEventAndMessage(interaction, eventId, guildId)
+                    let eventDetails, eventMessage;
+                    if (event.success) {
+                        ({eventDetails, eventMessage} = event.value);
+                        console.log(eventDetails);
+                        if (eventName) {
+                            if (eventName.length > 255) {
+                                return interaction.reply({content: 'Invalid event name: name should be less than 255 symbols', ephemeral: true});
+                            }
+                            eventDetails.event_name = eventName;
+                        }
+                        if (date) {
+                            if (!CTAManager.isValidDate(date)) {
+                                return interaction.reply({content: 'Invalid date: date should be in DD.MM.YYYY format', ephemeral: true});
+                            }
+                            eventDetails.date = date; 
+                        } 
+                        if (time) {
+                            //if (!isValidTime(time)) {
+                            //    return {success: false, error: 'Invalid time: time should be in HH:MM format'};
+                            //}
+                            eventDetails.time_utc = time; 
+                        }
+                        const participants = await CTAManager.getParticipants(eventId, guildId);
+                        
+                        const embed = CTAManager.buildEventMessage(participants.value, eventDetails); 
+                        await eventMessage.edit({ embeds: [embed] });
+                        return await interaction.reply({content: `Event ${eventId} updated!`, ephemeral: true});
+                    } else {
+                        return await interaction.reply({content: event.error, ephemeral: true});
+                    }
+                }
+
                 // Handle /ctabot newcta
                 if (subCommand === 'newcta') {
                     const eventName = options.getString('eventname');
@@ -646,8 +686,6 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                 
                 if (subCommand === 'help') {
                     const response = `
-**CTABot** is a Discord bot for managing Guild events in Albion Online. It helps organize CTAs, Outpost runs, and other content.
-
 ## General
 Add key players (e.g., shotcallers, admins) to the \`CTABot Admin\` role for managing and canceling events created by others.
 
@@ -669,10 +707,12 @@ Add key players (e.g., shotcallers, admins) to the \`CTABot Admin\` role for man
    Event ID is shown at the bottom of the event form. You will need it for other event-related commands.   
 2. **Cancel Event**:  
    \`/ctabot cancelcta id:<eventid>\` (Admins can cancel any event).  
-3. **Ping Signups**: Use the **Ping** button on the event form (Only event organizer and Admins).  
-4. **Clear Roles**:  
+3. **Edit Event**:  
+   \`/ctabot editcta eventid:<eventid> eventname:<title> date:<DD.MM.YYYY> time:<time>\` (Admins can cancel any event).  
+4. **Ping Signups**: Use the **Ping** button on the event form (Only event organizer and Admins).  
+5. **Clear Roles**:  
    \`/ctabot clearroles eventid:<eventid> roles:<role1,role2>\`  
-5. **Check Missing Players**:  
+6. **Check Missing Players**:  
    \`/ctabot missing eventid:<eventid>\` to ping absent players. Use \`/ctabot prune eventid:<eventid>\` to free their roles.
 
 ## For Players

@@ -588,7 +588,9 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                     let eventDetails, eventMessage;
                     if (event.success) {
                         ({eventDetails, eventMessage} = event.value);
-                        console.log(eventDetails);
+                        if (userId != eventDetails.user_id && !hasRole) {
+                            return await interaction.reply({ content: `Editing events is allowed only to the organizer of the event or CTABot Admin role`, ephemeral: true });
+                        }
                         if (eventName) {
                             if (eventName.length > 255) {
                                 return interaction.reply({content: 'Invalid event name: name should be less than 255 symbols', ephemeral: true});

@@ -3,5 +3,4 @@
 # Dev specific! 
 node_modules
 package-lock.json
-json
 eng.traineddata

@@ -671,8 +671,8 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                 if (subCommand === 'newcomp') {
                     const compName = options.getString('compname');
                     const rolesString = options.getString('comproles');
-                    if (rolesString.length > 1600) {
-                        return await interaction.reply({ content: `Composition shouldn't be longer than 1600 symbols. If you really need it, consider splitting list in two or more comps.`, ephemeral: true });
+                    if (rolesString.split(';').length > 60) {
+                        return await interaction.reply({ content: `Composition must have no more than 60 roles`, ephemeral: true });
                     }                
                     const result = await CompsManager.newComp(compName, rolesString, guildId, userId);
                     if ( result.success ) {
@@ -704,7 +704,7 @@ Add key players (e.g., shotcallers, admins) to the \`CTABot Admin\` role for man
 ## Composition Management
 1. **Create Composition**:  
    \`/ctabot newcomp compname:<name> comproles:role1;role2;role3\`  
-   List of roles must be separated by \`;\' and must be less than 1600 characters.   
+   List of roles must be separated by \`;\'. 
    Compositions with over 20 roles are split into multiple parties.  
 2. **View Compositions**:  
    \`/ctabot listcomps\` or \`/ctabot listcomps compname:<name>\`.  

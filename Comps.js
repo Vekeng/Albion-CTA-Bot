@@ -65,7 +65,16 @@ export async function getCompRoles(compName, guildId) {
 }
 
 export async function newComp(compName, compRoles, guildId, userId) {
-    const rolesArray = compRoles.split(';').map(role => role.trim());
+    const rolesArray = compRoles.split(';').map(role => {
+        const trimmedRole = role.trim();
+        if (trimmedRole.length > 24) {
+            return false;
+        }
+        return trimmedRole;
+    });
+    if ( rolesArray.some(role => role === false)) {
+        return {success: false, error: `Some roles exceeds the 24-character limit.`};
+    }
     const parties = {};
     // Split roles into parties of maximum 20
     for (let i = 0; i < rolesArray.length; i++) {

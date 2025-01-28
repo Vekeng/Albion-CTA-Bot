@@ -84,7 +84,7 @@ const commands = [
             {
                 type: 3,
                 name: 'comproles',
-                description: 'Type in Roles in the comp separated by \`;\` (Example: 1H Mace; Hallowfall; Rift Glaive',
+                description: 'Type in Roles in the comp separated by \`;\` (Example: 1H Mace; Hallowfall; Rift Glaive)',
                 required: true
             },
         ]

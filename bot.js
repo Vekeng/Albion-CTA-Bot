@@ -616,7 +616,7 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                                 SET event_name = $1, date = $2, time_utc = $3
                                 WHERE event_id = $4;
                             `;
-                            await pgClient.query(insertEvent, [eventName, date, time, eventDetails.eventId]);
+                            await pgClient.query(insertEvent, [eventDetails.event_name, eventDetails.date, eventDetails.time_utc, eventDetails.event_id]);
                         } catch (error){
                             logger.logWithContext('error', `Error when inserting event ${eventId} to the database`, error);
                             return {success: false, error: `Internal system error.`} 

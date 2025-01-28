@@ -610,7 +610,17 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                             eventDetails.time_utc = time; 
                         }
                         const participants = await CTAManager.getParticipants(eventId, guildId);
-                        
+                        try {
+                            const insertEvent = `
+                                UPDATE events
+                                SET event_name = $1, date = $2, time_utc = $3
+                                WHERE event_id = $4;
+                            `;
+                            await pgClient.query(insertEvent, [eventName, date, time, eventDetails.eventId]);
+                        } catch (error){
+                            logger.logWithContext('error', `Error when inserting event ${eventId} to the database`, error);
+                            return {success: false, error: `Internal system error.`} 
+                        }
                         const embed = CTAManager.buildEventMessage(participants.value, eventDetails); 
                         await eventMessage.edit({ embeds: [embed] });
                         return await interaction.reply({content: `Event ${eventId} updated!`, ephemeral: true});

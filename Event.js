@@ -414,6 +414,7 @@ export function buildEventMessage(eventParticipants, eventDetails) {
         // Add the formatted roles list to the embed
         embed.addFields({ name: `⚔️ ${party}`, value: partyRoles, inline: true });
     }
+    embed.addFields({ name: 'Sponsor Me', value: '[PayPal](https://www.paypal.com/donate/?hosted_button_id=USFH3U33BMAAY)', inline: false });
     embed.setFooter({text: `Event ID: ${eventDetails.event_id}`});
     return embed;
 }

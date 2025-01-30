@@ -6,7 +6,7 @@ services:
       context: .
       dockerfile: Dockerfile
     environment:
-      BOTENV: DOCKER
+      BOTENV: PRODUCTION
       BOT_TOKEN: ${BOT_TOKEN}
       CLIENT_ID: ${CLIENT_ID}
       DATABASE_HOST: ${DATABASE_HOST}

@@ -4,13 +4,12 @@ import { logger } from './winston.js';
 
 import dotenv from 'dotenv';
 
-if (process.env.BOTENV != "DOCKER") {
-  // Load environment variables from .env if not in a Docker container
-  dotenv.config();
+if (process.env.BOTENV != "PRODUCTION") {
+  // Load environment variables from .env.dev if not production
+  dotenv.config({path: '.env.dev'});
 }
 const pgClient = new Client({
   host: process.env.DATABASE_HOST,
-  //host: "127.0.0.1",
   port: process.env.DATA,
   user: process.env.DATABASE_USER,
   password: process.env.DATABASE_PASSWORD,

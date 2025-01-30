@@ -21,11 +21,10 @@ import * as CompsManager from './Comps.js';
 import { 
     extractKeywordAndTime 
 } from './functions.js';
-if (process.env.BOTENV != "DOCKER") {
-  
-    // Load environment variables from .env if not in a Docker container
-    dotenv.config();
-  }
+if (process.env.BOTENV != "PRODUCTION") {
+    // Load environment variables from .env.dev if not production
+    dotenv.config({path: '.env.dev'});
+}
 
 const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
 

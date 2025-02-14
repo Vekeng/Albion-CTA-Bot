@@ -437,7 +437,7 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
 
                         // Send the extracted text back
                         if (text.trim()) {
-                            const allContent = ['Power Vortex', 'A \\w+ with plenty of Tier \\d\\.\\d \\w+', 'Power Anomaly'];
+                            const allContent = ['Large Treasure Chest', 'Power Vortex', 'A \\w+ with plenty of Tier \\d\\.\\d \\w+', 'Power Anomaly'];
                             let message; // Default message
                             for (const keyword of allContent) {
                                 const contentRegex = new RegExp(keyword, 'i');

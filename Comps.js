@@ -43,7 +43,7 @@ export async function getCompRoles(compName, guildId) {
     let roles;
     let response; 
     try {
-        const getCompRoles = `SELECT roles.party, roles.role_name
+        const getCompRoles = `SELECT roles.party, roles.role_id, roles.role_name
                         FROM compositions
                         INNER JOIN roles ON compositions.comp_name = roles.comp_name AND compositions.discord_id = roles.discord_id
                         WHERE compositions.discord_id = $1 AND compositions.comp_name = $2
@@ -51,17 +51,18 @@ export async function getCompRoles(compName, guildId) {
         roles = await pgClient.query(getCompRoles, [guildId, compName]);
     } catch (error) {
         logger.logWithContext('error',`Error fetching composition: ${error}`);
-        return {error: true, payload: `Internal system error`};
+        return {success: false, error: `Internal system error`};
     }
     if (roles.rows.length > 0) {
-        response = `Roles in composition "${compName}":\n`;
-        for (const row of roles.rows) {
-            response += `${row.role_name};`;
-        }
+        return {success: true, value: roles.rows};
+        //response = `Roles in composition "${compName}":\n`;
+        //for (const row of roles.rows) {
+        //    response += `${row.role_name};`;
+        //}
     } else {
-        return {error: true, payload: `Composition "${compName}" does not exist.`};
+        return {success: false, error: `Composition "${compName}" does not exist.`};
     }
-    return {error: false, payload: response};
+    //return {success: true, value: response};
 }
 
 export async function newComp(compName, compRoles, guildId, userId) {
@@ -87,7 +88,6 @@ export async function newComp(compName, compRoles, guildId, userId) {
     // Check if the composition already exists in the database
     let message; 
     let comp = await getCompByName(compName, guildId);
-    console.log(comp.success);
     if (comp.success) {
         return { success: false, error: `Composition ${compName} already exists!`}
     } else {

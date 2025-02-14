@@ -174,13 +174,15 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                 if (interaction.customId.startsWith('leaveCTA')) {
                     const [action, eventId] = interaction.customId.split('|');
                     let eventMessage;
+                    let eventDetails;
                     const event = await CTAManager.getEventAndMessage(interaction, eventId, guildId)
                     if (event.success) {
                         eventMessage = event.value.eventMessage;
+                        eventDetails = event.value.eventDetails;
                     } else {
                         return await interaction.reply({ content: event.error, ephemeral: true });
                     }
-                    const result = await CTAManager.leaveCTA(userId, eventId, guildId)
+                    const result = await CTAManager.leaveCTA(userId, eventDetails)
                     if (!result.success) {
                         return await interaction.reply({ content: result.error, ephemeral: true });
                     }
@@ -195,42 +197,18 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                     if ( !event.success ) {
                         return await interaction.reply({content: event.error, ephemeral: true});
                     }
-                    
-                    let availableParties; 
-                    try {
-                        const getParties = `
-                            SELECT DISTINCT r.party
-                            FROM
-                                roles r
-                            JOIN
-                                events e
-                            ON
-                                r.comp_name = e.comp_name
-                                AND r.discord_id = e.discord_id
-                            LEFT JOIN
-                                participants p
-                            ON
-                                p.role_id = r.role_id
-                                AND p.discord_id = r.discord_id
-                                AND p.comp_name = r.comp_name
-                                AND p.event_id = e.event_id
-                            WHERE
-                                e.event_id = $1
-                                AND e.discord_id = $2
-                                AND p.user_id IS NULL;
-                        `;
-                        availableParties = await pgClient.query(getParties, [eventId, guildId]);
-                    } catch (error) {
-                        logger.logWithContext('error', error);
-                        return await interaction.reply({content: `Internal system error.`, ephemeral: true});
-                    }
-                    if (availableParties.rowCount === 0) {
+                    const eventDetails = event.value.eventDetails;
+                    const partiesWithFreeRoles = eventDetails.rolesjson
+                        .filter(role => role.user_id === null) // Filter for roles where user_id is null
+                        .map(role => role.party); // Extract the party names
+                    const availableParties = [...new Set(partiesWithFreeRoles)];
+                    if (availableParties.length === 0) {
                         return await interaction.reply({content: `There are no free roles left`, ephemeral: true});
                     }
-                    for (const party of availableParties.rows) {
+                    for (const party of availableParties) {
                         options.push({
-                            label: party.party, // Display name
-                            value: party.party, // Value to be returned on selection
+                            label: party, // Display name
+                            value: party, // Value to be returned on selection
                         });
                     }
                     const selectMenu = new StringSelectMenuBuilder()
@@ -259,42 +237,45 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                     } else {
                         return await interaction.update({content: event.error, ephemeral: true});
                     }                   
-                    let participant;
-                    try {
-                        const checkParticipant = `SELECT * FROM participants WHERE role_id=$1 AND event_id=$2 AND discord_id=$3`; 
-                        participant = await pgClient.query(checkParticipant, [roleId, eventId, guildId]);
-                    } catch (error) {
-                        logger.logWithContext('error', error);
-                        return await interaction.update({content: `Internal system error. `, ephemeral: true});
+                    const eventDetails = event.value.eventDetails; 
+
+                    const availableRoles = eventDetails.rolesjson
+                        .filter(role => role.party === party && role.user_id === null);
+                    if ( availableRoles.length === 0 ) {
+                        return await interaction.reply({content: `There are no free roles left`, ephemeral: true});
                     }
-                    if (participant.rowCount === 1 ) {
-                        const participantDetails = participant.rows[0];
-                        if (participantDetails.user_id === userId) {
-                            return await interaction.reply({ content: `You already has ${roleId}. ${roleName} assigned`, ephemeral: true});
-                        } else {
-                            return await interaction.reply({ content: `This role is already assigned to <@${participantDetails.user_id}>`, ephemeral: true});
+                    let roleChange = false;
+                    eventDetails.rolesjson = eventDetails.rolesjson.map(role => {
+                        if (role.user_id === userId) {
+                            roleChange = true;
+                            return { ...role, user_id: null }; // Remove the user from other roles
                         }
-                    }
-                    let removeResult;
-                    let insertResult;
+                        return role;
+                    });
+                    eventDetails.rolesjson = eventDetails.rolesjson.map(role => {
+                        if (role.role_id === parseInt(roleId) && role.user_id === null) {
+                            // Assign the new user_id to the role
+                            return { ...role, user_id: userId };
+                        }
+                        return role; // Return unchanged role if no match
+                    });
+
                     try {
-                        await pgClient.query('BEGIN');
-                        const removeParticipantQuery = 'DELETE FROM participants WHERE user_id=$1 AND event_id=$2 AND discord_id=$3';
-                        removeResult = await pgClient.query(removeParticipantQuery, [userId,eventId,guildId]); 
-                        const insertParticipantQuery = `INSERT INTO participants VALUES ($1, $2, $3, $4, $5);`;
-                        insertResult = await pgClient.query(insertParticipantQuery, [userId, roleId, compName, eventId, guildId]);
-                        await pgClient.query('COMMIT');
-                    } catch (error) {
-                        logger.logWithContext('error', error);
-                        await pgClient.query('ROLLBACK');
-                        return await interaction.reply({content: `Internal system error`, ephemeral: true});
+                        const updateEvent = `
+                            UPDATE events
+                            SET rolesjson = $1
+                            WHERE event_id = $2 AND discord_id = $3;
+                        `;
+                        await pgClient.query(updateEvent, [JSON.stringify(eventDetails.rolesjson), eventDetails.event_id, eventDetails.discord_id]);
+                    } catch (error){
+                        logger.logWithContext('error', `Error when inserting event ${eventId} to the database, ${error}`);
+                        return {success: false, error: `Internal system error.`} 
                     }
-                    const participants = await CTAManager.getParticipants(eventId, guildId); 
-                    const eventDetails = await CTAManager.getEventByID(eventId, guildId); 
+
                     // Rebuild the event post
-                    const embed = CTAManager.buildEventMessage(participants.value, eventDetails.value);
+                    const embed = CTAManager.buildEventMessage(eventDetails);
                     let message; 
-                    if ( removeResult.rowCount === 1 ) {
+                    if ( roleChange ) {
                         message = `You have switched the role to ${roleId}. ${roleName}`;
                     } else {
                         message = `Your role is: ${roleId}. ${roleName}`;
@@ -317,40 +298,14 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                     if ( !event.success ) {
                         return await interaction.reply({content: event.error, ephemeral: true});
                     }
-                    let availableRoles;
-                    try {
-                        const availableRolesQuery = `
-                            SELECT r.role_id, r.role_name
-                            FROM
-                            roles r
-                            JOIN
-                            events e
-                            ON
-                            r.comp_name = e.comp_name
-                            AND r.discord_id = e.discord_id
-                            LEFT JOIN
-                            participants p
-                            ON
-                            p.role_id = r.role_id
-                            AND p.discord_id = r.discord_id
-                            AND p.comp_name = r.comp_name
-                            AND p.event_id = e.event_id
-                            WHERE
-                            e.event_id = $1
-                            AND e.discord_id = $2
-                            AND p.user_id IS NULL
-                            AND r.party = $3;
-                        `; 
-                        availableRoles = await pgClient.query(availableRolesQuery, [eventId, guildId, party]);
-                    } catch (error) {
-                        logger.logWithContext('error', error); 
-                        return await interaction.reply({content: `Internal system error`, ephemeral: true});
-                    }
-                    if ( availableRoles.rowCount === 0 ) {
+                    const eventDetails = event.value.eventDetails;
+                    const availableRoles = eventDetails.rolesjson
+                        .filter(role => role.party === party && role.user_id === null);
+                    if ( availableRoles.length === 0 ) {
                         return await interaction.reply({content: `There are no free roles left`, ephemeral: true});
                     }
                     const options = [];
-                    for (const { role_id: roleId, role_name: roleName } of availableRoles.rows) {
+                    for (const { role_id: roleId, role_name: roleName } of availableRoles) {
                         options.push({
                             label: `${roleId}. ${roleName}`, // Display name
                             value: `${roleId}|${roleName}` // Value to be returned on selection

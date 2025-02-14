@@ -32,20 +32,24 @@ import { ActionRowBuilder, ButtonBuilder, ButtonStyle, Client, GatewayIntentBits
  * }
  */
 export async function createCTA(eventId, eventName, userId, guildId, compName, date, time) {
+    let eventRoles;
     try {
-        const insertEvent = `INSERT INTO events (event_id, event_name, user_id, discord_id, comp_name, date, time_utc)
-                                VALUES ($1, $2, $3, $4, $5, $6, $7);`
-        await pgClient.query(insertEvent, [eventId, eventName, userId, guildId, compName, date, time]);
+        const rolesResult = await CompsManager.getCompRoles(compName, guildId); 
+        eventRoles = rolesResult.value.map(role => ({
+            role_id: role.role_id,
+            role_name: role.role_name,
+            party: role.party, 
+            user_id: null
+        }));
+        const jsonRoles = JSON.stringify(eventRoles);
+        const insertEvent = `INSERT INTO events (event_id, event_name, user_id, discord_id, comp_name, date, time_utc, rolesjson)
+                                VALUES ($1, $2, $3, $4, $5, $6, $7, $8);`
+        await pgClient.query(insertEvent, [eventId, eventName, userId, guildId, compName, date, time, jsonRoles]);
     } catch (error){
-        logger.logWithContext('error', `Error when inserting event ${eventId} to the database`, error);
+        logger.logWithContext('error', `Error when inserting event ${eventId} to the database, ${error}`);
         return {success: false, error: `Internal system error.`} 
     }
-    const response = await getParticipants(eventId, guildId);
-    if (!response.success) {
-        return {success: false, error: response.error};
-    } 
-    const participants = response.value;
-    
+        
     const joinButton = new ButtonBuilder()
         .setCustomId(`joinCTA|${eventId}|${compName}`)
         .setLabel('Join')
@@ -70,9 +74,10 @@ export async function createCTA(eventId, eventName, userId, guildId, compName, d
         guild_id: guildId,
         comp_name: compName,
         date: date, 
-        time_utc: time
+        time_utc: time,
+        rolesjson: eventRoles
     };
-    const embed = buildEventMessage(participants, eventDetails);
+    const embed = buildEventMessage(eventDetails);
     embed.setFooter({ text: `Event ID: ${eventId}` });
     return { success: true, value: {
         embeds: [embed],
@@ -81,23 +86,13 @@ export async function createCTA(eventId, eventName, userId, guildId, compName, d
     }}; 
 }
 
-export async function leaveCTA(userId, eventId, guildId) {
-    const response = await getEventByID(eventId, guildId); 
-    let message;
-    if (!response.success) {
-        return {success: false, error: response.error};
-    } 
-    const event = response.value;
-    const removedParticipant = await removeParticipantByUserID(userId, eventId, guildId);
+export async function leaveCTA(userId, eventDetails) {
+    const removedParticipant = await removeParticipantByUserID(userId, eventDetails);
     if (!removedParticipant.success) {
-        return {success: false, payload: removedParticipant.error}
-    } else if (removedParticipant.value.length > 0) {
-        message = `<@${userId}> removed from the event`;
-    } else {
-        return {success: false, error: `<@${userId}> is not in the event`};
-    }
-    const participants = await getParticipants(eventId, guildId); 
-    const embed = buildEventMessage(participants.value, event);
+        return {success: false, error: removedParticipant.error}
+    } 
+    const message = `<@${userId}> removed from the event`;
+    const embed = buildEventMessage(removedParticipant.value);
     return {success: true, value: {message: message, embed: embed}};        
 }
 
@@ -124,14 +119,29 @@ export async function leaveCTA(userId, eventId, guildId) {
  *     console.error(result.error);
  * }
  */
-export async function removeParticipantByUserID(userId, eventId, guildId) {
+export async function removeParticipantByUserID(userId, eventDetails) {
+    let removed = false;
+    eventDetails.rolesjson = eventDetails.rolesjson.map(role => {
+        if (role.user_id === userId) {
+            removed = true;
+            return { ...role, user_id: null }; // Remove the user from other roles
+        }
+        return role;
+    });
+    if (!removed) {
+        return {success: false, error: `<@${userId}> is not in the event`};
+    }
     try {
-        const removeParticipant = 'DELETE FROM participants WHERE user_id=$1 AND event_id=$2 AND discord_id=$3 RETURNING role_id';
-        const participant = await pgClient.query(removeParticipant, [userId,eventId,guildId]); 
-        return {success: true, value: participant.rows}; 
-    } catch (error) {
-        logger.logWithContext('error', `Error removing participant ${userId} for event ID ${eventId}: ${error}`)
-        return {success: false, error: `Internal system error`}; 
+        const updateEvent = `
+            UPDATE events
+            SET rolesjson = $1
+            WHERE event_id = $2 AND discord_id = $3;
+        `;
+        await pgClient.query(updateEvent, [JSON.stringify(eventDetails.rolesjson), eventDetails.event_id, eventDetails.discord_id]);
+        return {success: true, value: eventDetails}; 
+    } catch (error){
+        logger.logWithContext('error', `Error when inserting event ${eventId} to the database, ${error}`);
+        return {success: false, error: `Internal system error.`} 
     }
 }
 
@@ -382,13 +392,14 @@ export async function getEventAndMessage(interaction, eventId, guildId) {
  * const embed = buildEventMessage(eventParticipants, eventDetails);
  * console.log(embed);
  */
-export function buildEventMessage(eventParticipants, eventDetails) {
+export function buildEventMessage(eventDetails) {
+    const participants = eventDetails.rolesjson;
     const embed = new EmbedBuilder()
         .setTitle(eventDetails.event_name)
         .setDescription(`Date: **${eventDetails.date}**\nTime (UTC): **${eventDetails.time_utc}**`)
         .setColor('#0099ff');
     // Group roles by party
-    const groupedRoles = eventParticipants.reduce((acc, { role_id, role_name, party, user_id }) => {
+    const groupedRoles = participants.reduce((acc, { role_id, role_name, party, user_id }) => {
         if (!acc[party]) acc[party] = []; // Create a new array for the party if it doesn't exist
         acc[party].push({ role_id, role_name, user_id }); // Add role to the party group
         return acc;

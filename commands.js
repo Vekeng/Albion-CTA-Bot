@@ -68,6 +68,7 @@ const commands = [
                     type: 3, // ATTACHMENT
                     description: 'Type in the name of the comp to delete',
                     required: true,
+                    autocomplete: true,
                 },
             ],
         },
@@ -95,10 +96,11 @@ const commands = [
             description: 'List all compositions or roles from a specific composition.',
             options: [
                 {
-                    name: 'compname',
+                    name: 'comp',
                     type: 3, // STRING
                     description: 'Name of the composition (optional)',
                     required: false,
+                    autocomplete: true,
                 },
             ],
         },

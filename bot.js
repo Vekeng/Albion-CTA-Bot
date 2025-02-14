@@ -122,7 +122,7 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
             if (interaction.isAutocomplete()) {
                 if (interaction.commandName === 'ctabot') {
                     const subCommand = interaction.options.getSubcommand(false); // Get subcommand without erroring if none
-                    if (subCommand === 'newcta') {
+                    if (subCommand === 'newcta' || subCommand === 'deletecomp' || subCommand === 'listcomps') {
                         const focusedValue = interaction.options.getFocused();
                         const guildId = interaction.guildId;
 
@@ -704,7 +704,7 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                 
                 // Handle the /listcomps command
                 if (subCommand === 'listcomps') {
-                    const compName = options.getString('compname');
+                    const compName = options.getString('comp');
                     let result = '';                
                     // Check if a composition name is provided
                     if (compName) {

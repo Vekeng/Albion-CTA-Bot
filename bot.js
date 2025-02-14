@@ -119,6 +119,27 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                 return interaction.reply({content:`I am missing the following permissions: ${missingPermissionsNames.join(', ')}`, ephemeral: true});
             }
             // If no permissions are missing, proceed with the action
+            if (interaction.isAutocomplete()) {
+                if (interaction.commandName === 'ctabot') {
+                    const subCommand = interaction.options.getSubcommand(false); // Get subcommand without erroring if none
+                    if (subCommand === 'newcta') {
+                        const focusedValue = interaction.options.getFocused();
+                        const guildId = interaction.guildId;
+
+                        // Fetch available compositions from CompsManager
+                        const getComps = `SELECT comp_name FROM compositions WHERE discord_id = $1 ORDER BY comp_name;`;
+                        const compsResult = await pgClient.query(getComps, [guildId]);
+                        const compositions = compsResult.rows.map(row => row.comp_name);
+                        // Filter compositions based on user input
+                        const filtered = compositions
+                            .filter(comp => comp.toLowerCase().includes(focusedValue.toLowerCase()))
+                            .slice(0, 10); // Limit to 25 results
+                            await interaction.respond(
+                                filtered.map(comp => ({ name: comp, value: comp }))
+                        );
+                    }
+                }
+            }
             if (interaction.isButton()){
                 logger.logWithContext('info',`Button pressed: ${interaction.customId}`);
                 // Handle Ping button

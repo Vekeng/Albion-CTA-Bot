@@ -146,6 +146,7 @@ const commands = [
                 type: 3, // STRING
                 description: 'Composition name',
                 required: true,
+                autocomplete: true,
             }],
         }, 
         {

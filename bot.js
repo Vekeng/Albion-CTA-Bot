@@ -739,7 +739,6 @@ Add key players (e.g., shotcallers, admins) to the \`CTABot Admin\` role for man
 ## For Players
 1. Join events using the **Join** button, selecting your party and role.  
 2. Leave events using the **Leave** button.  
-3. View your events with \`/ctabot myctas\`.
 
 [**Detailed Guide**](https://gist.github.com/Vekeng/b69d35375e67f5db36f73f7d520d4914)
 `;

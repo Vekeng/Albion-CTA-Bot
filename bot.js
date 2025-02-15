@@ -86,38 +86,7 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
 
             const member = await interaction.guild.members.fetch(userId);
             const hasRole = member.roles.cache.some(role => role.name === guildRoleName);
-            const requiredPermissions = [
-                PermissionFlagsBits.SendMessages,
-                PermissionFlagsBits.EmbedLinks,
-                PermissionFlagsBits.ViewChannel,
-                PermissionFlagsBits.ReadMessageHistory,
-                PermissionFlagsBits.ManageRoles
-                ];
-            const channelPermissions = interaction.channel.permissionsFor(interaction.guild.members.me);
-            const missingPermissions = requiredPermissions.filter(permission => !channelPermissions.has(permission));
-            if (!channelPermissions) {
-                return interaction.reply({content:"I couldn't retrieve the bot's permissions in this channel.", ephemeral: true});
-            }
-            if (missingPermissions.length > 0) {
-                const missingPermissionsNames = missingPermissions.map(permission => {
-                    // Convert the PermissionFlags to their names (optional)
-                    switch (permission) {
-                        case PermissionFlagsBits.SendMessages:
-                            return 'Send Messages';
-                        case PermissionFlagsBits.EmbedLinks:
-                            return 'Embed Links';
-                        case PermissionFlagsBits.ViewChannel:
-                            return 'View channel';
-                        case PermissionFlagsBits.ReadMessageHistory:
-                            return 'Read Message History';
-                        case PermissionFlagsBits.ManageRoles: 
-                            return 'Manage Roles';
-                        default:
-                            return 'Unknown Permission';
-                    }
-                });
-                return interaction.reply({content:`I am missing the following permissions: ${missingPermissionsNames.join(', ')}`, ephemeral: true});
-            }
+            
             // If no permissions are missing, proceed with the action
             if (interaction.isAutocomplete()) {
                 if (interaction.commandName === 'ctabot') {
@@ -138,6 +107,41 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                                 filtered.map(comp => ({ name: comp, value: comp }))
                         );
                     }
+                }
+            } else {
+                const requiredPermissions = [
+                    PermissionFlagsBits.SendMessages,
+                    PermissionFlagsBits.EmbedLinks,
+                    PermissionFlagsBits.ViewChannel,
+                    PermissionFlagsBits.ReadMessageHistory,
+                    PermissionFlagsBits.ManageRoles
+                    ];
+                const channelPermissions = interaction.channel.permissionsFor(interaction.guild.members.me);
+                const missingPermissions = requiredPermissions.filter(permission => !channelPermissions.has(permission));
+                if (!channelPermissions) {
+                    logger.logWithContext('error',`Couldn't retrieve the bot's permissions for channel.`);
+                    return interaction.reply({content:"I couldn't retrieve the bot's permissions in this channel.", ephemeral: true});   
+                }
+                if (missingPermissions.length > 0) {
+                    const missingPermissionsNames = missingPermissions.map(permission => {
+                        // Convert the PermissionFlags to their names (optional)
+                        switch (permission) {
+                            case PermissionFlagsBits.SendMessages:
+                                return 'Send Messages';
+                            case PermissionFlagsBits.EmbedLinks:
+                                return 'Embed Links';
+                            case PermissionFlagsBits.ViewChannel:
+                                return 'View channel';
+                            case PermissionFlagsBits.ReadMessageHistory:
+                                return 'Read Message History';
+                            case PermissionFlagsBits.ManageRoles: 
+                                return 'Manage Roles';
+                            default:
+                                return 'Unknown Permission';
+                        }
+                    });
+                    logger.logWithContext('error',`Missing permissions:  ${missingPermissionsNames.join(', ')}`);
+                    return interaction.reply({content:`I am missing the following permissions: ${missingPermissionsNames.join(', ')}`, ephemeral: true});
                 }
             }
             if (interaction.isButton()){

@@ -625,7 +625,71 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                         return await interaction.reply({content: result.error, ephemeral: true});
                     }
                 }
-                
+                /*
+                if (subCommand === 'assign') {
+                    const eventId = options.getString('event');
+                    const playerId = options.getUser('player').id;
+                    const roleId = options.getString('role');
+                    const event = await CTAManager.getEventAndMessage(interaction, eventId, guildId); 
+                    if (!event.success) {
+                        return await interaction.update({content: event.error, ephemeral: true});
+                    } 
+                    const eventMessage = event.value.eventMessage;                 
+                    const eventDetails = event.value.eventDetails; 
+                    let success = false;
+                    eventDetails.rolesjson = eventDetails.rolesjson.map(role => {
+                        if (role.role_id === parseInt(roleId) && role.user_id === null) {
+                            // Assign the new user_id to the role
+                            success = true;
+                            return { ...role, user_id: playerId };
+                        }
+                        return role; // Return unchanged role if no match
+                    });
+                    let roleChange = false;
+                    if (!success) {
+                        const message = "Slot is already taken"
+                        return await interaction.reply({
+                            content: message,
+                            components: [],
+                            ephemeral: true
+                        });
+                    }
+                    eventDetails.rolesjson = eventDetails.rolesjson.map(role => {
+                        if (role.user_id === playerId) {
+                            roleChange = true;
+                            return { ...role, user_id: null }; // Remove the user from other roles
+                        }
+                        return role;
+                    });
+                    
+                    console.log(eventDetails.rolesjson);
+                    try {
+                        const updateEvent = `
+                            UPDATE events
+                            SET rolesjson = $1
+                            WHERE event_id = $2 AND discord_id = $3;
+                        `;
+                        await pgClient.query(updateEvent, [JSON.stringify(eventDetails.rolesjson), eventDetails.event_id, eventDetails.discord_id]);
+                    } catch (error){
+                        logger.logWithContext('error', `Error when inserting event ${eventId} to the database, ${error}`);
+                        return {success: false, error: `Internal system error.`} 
+                    }
+
+                    // Rebuild the event post
+                    const embed = CTAManager.buildEventMessage(eventDetails);
+                    const message = `<@${playerId}> assigned`;
+
+                    
+                    // Update the original message
+                    await eventMessage.edit({ embeds: [embed] });                    
+                    // Inform about the role change
+                    await interaction.reply({
+                        content: message,
+                        components: [],
+                        ephemeral: true
+                    });
+                }
+                */
                 // Handle the /listcomps command
                 if (subCommand === 'listcomps') {
                     const compName = options.getString('comp');

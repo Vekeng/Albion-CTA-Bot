@@ -40,6 +40,36 @@ const commands = [
             description: 'How to use CTA BOT',
             type: 1
         },
+        /*
+        {
+            name: 'assign', 
+            description: 'Assign player to specific role',
+            type: 1, 
+            options: [
+                {
+                type: 3, 
+                name: 'event',
+                description: 'Event ID', 
+                required: true,
+                //autocomplete: true
+                }, 
+                {
+                type: 6, 
+                name: 'player',
+                description: 'Player to assign to role', 
+                required: true,
+                //autocomplete: true
+                }, 
+                {
+                type: 3, 
+                name: 'role',
+                description: 'Role to assign player to', 
+                required: true,
+                //autocomplete: true
+                }, 
+            ]    
+        },
+        */
         {
             name: 'ocr',
             description: 'Recognize event from screenshot',

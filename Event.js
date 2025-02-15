@@ -195,74 +195,6 @@ export async function removeParticipantByRoleID(roleId, eventDetails) {
     }
 }
 
-/**
- * Fetches a list of upcoming events (CTAs) a user is signed up for in a Discord guild.
- *
- * This function retrieves events and associated roles from the database where the user is a participant.
- * It returns a formatted message summarizing the upcoming events. If no events are found, or an error occurs,
- * it provides an appropriate error response.
- *
- * @async
- * @function getMyCTA
- * @param {string} userId - The Discord user ID of the participant.
- * @param {string} guildId - The Discord guild ID where the events are hosted.
- * @returns {Promise<Object>} A promise that resolves to an object containing the result:
- * - If successful: `{ success: true, value: string }`, where `value` is a formatted string listing the user's events.
- * - If no events are found: `{ success: false, error: string }` with an appropriate error message.
- * - If an unexpected error occurs: `{ success: false, error: string }` indicating an internal system error.
- *
- * @example
- * const result = await getMyCTA('123456789012345678', '987654321098765432');
- * if (result.success) {
- *     console.log(result.value);
- * } else {
- *     console.error(result.error);
- * }
- */
-export async function getMyCTA(userId, guildId) {
-    let myCTAs;
-    try {
-        const getMyCTAs = `SELECT 
-            e.event_id,
-            e.event_name,
-            e.date,
-            e.time_utc,
-            r.role_id,
-            r.role_name,
-            r.party
-        FROM 
-            participants p
-        JOIN 
-            events e 
-            ON p.event_id = e.event_id AND p.discord_id = e.discord_id
-        JOIN 
-            roles r 
-            ON p.role_id = r.role_id 
-            AND p.comp_name = r.comp_name 
-            AND p.discord_id = r.discord_id
-        WHERE 
-            p.user_id = $1
-            AND p.discord_id = $2;
-        `                                                                                                   
-        myCTAs = await pgClient.query(getMyCTAs, [userId, guildId]);
-    } catch (error) {
-        logger.logWithContext('error', error)
-        return {success: false, error: `Internal system error`}
-    }
-    if ( myCTAs.rows.length > 0 ) {
-        let message = 'Upcoming events you are signed up for: \n';
-        for ( const row of myCTAs.rows ) {
-            const today = new Date();
-            const dateTime = combineDateAndTime(row.date, row.time_utc);
-            if (dateTime.getTime() >= today.getTime()) {
-                message += `🚩 ${row.event_name} on 📅 ${row.date} at ⌚ ${row.time_utc} as ⚔️ ${row.role_name}\n`;
-            } 
-        }
-        return {success: true, value: message}
-    } else {
-        return {success: false, error: `You are not signed up for any CTAs`}; 
-    }
-}
 
 export async function deleteCTA(eventId, guildId, userId, hasRole) {
     if (!isValidSnowflake(eventId)){
@@ -356,15 +288,6 @@ export async function getEventAndMessage(interaction, eventId, guildId) {
     } else if (eventDetails.success && !eventMessage.success) {
         //await deleteCTA(eventId, guildId, 'System', true); 
         return {success: false, error: eventMessage.error};
-    // if CTA doesn't exists in database, but message exists - replace event message with text that it doesn't exist
-    //} else if ( !eventDetails.success && eventMessage.success ) {
-        //const message = eventMessage.value;
-        //await message.edit({
-        //    content: eventDetails.error,  // The new content for the message
-        //    embeds: [],           // Removing all embeds
-        //    components: []        // Removing all buttons and other components
-        //});
-        //return {success: false, error: eventDetails.error};
     }
     return {success: false, error: eventDetails.error};
 }

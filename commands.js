@@ -41,11 +41,6 @@ const commands = [
             type: 1
         },
         {
-            name: 'myctas',
-            description: 'List of CTAs you are signed for',
-            type: 1
-        },
-        {
             name: 'ocr',
             description: 'Recognize event from screenshot',
             type: 1,

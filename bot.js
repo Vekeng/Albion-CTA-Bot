@@ -435,13 +435,6 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                     
                 }
 
-                if (subCommand === 'myctas') {
-                    const myCTA = await CTAManager.getMyCTA(userId, guildId); 
-                    if ( !myCTA.success ) {
-                        return await interaction.reply({content: myCTA.error, ephemeral: true});
-                    }
-                    return await interaction.reply({content: myCTA.value, ephemeral: true});
-                }
                 // Clear users not in the Voice Channel from the roles
                 if (subCommand === 'prune') {
                     const eventId = options.getString('eventid');

@@ -11,17 +11,9 @@ export async function getAllComps(guildId) {
         comps = await pgClient.query(getComps, [guildId]);
     } catch (error) {
         logger.logWithContext('error', `Error fetching compositions: ${error}`);
-        return {error: true, payload: `Internal system error`};
+        return {success: false, error: `Internal system error`};
     }
-    if (comps.rows.length > 0) {
-        message += 'Available compositions:\n';
-        for (const row of comps.rows) {
-            message += `${row.comp_name}\n`;
-        }
-    } else {
-        return {error: false, payload: 'No comps found'}
-    }
-    return {error: false, payload: message}
+    return {success: true, value: comps.rows}
 }
 
 export async function getCompbyName(compName, guildId) {
@@ -55,14 +47,9 @@ export async function getCompRoles(compName, guildId) {
     }
     if (roles.rows.length > 0) {
         return {success: true, value: roles.rows};
-        //response = `Roles in composition "${compName}":\n`;
-        //for (const row of roles.rows) {
-        //    response += `${row.role_name};`;
-        //}
     } else {
         return {success: false, error: `Composition "${compName}" does not exist.`};
     }
-    //return {success: true, value: response};
 }
 
 export async function newComp(compName, compRoles, guildId, userId) {

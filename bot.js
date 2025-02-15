@@ -96,13 +96,12 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                         const guildId = interaction.guildId;
 
                         // Fetch available compositions from CompsManager
-                        const getComps = `SELECT comp_name FROM compositions WHERE discord_id = $1 ORDER BY comp_name;`;
-                        const compsResult = await pgClient.query(getComps, [guildId]);
-                        const compositions = compsResult.rows.map(row => row.comp_name);
+                        const compsArray = await CompsManager.getAllComps(guildId); 
+                        const compositions = compsArray.value.map(row => row.comp_name);
                         // Filter compositions based on user input
                         const filtered = compositions
                             .filter(comp => comp.toLowerCase().includes(focusedValue.toLowerCase()))
-                            .slice(0, 10); // Limit to 25 results
+                            .slice(0, 10); // Limit to 10 results
                             await interaction.respond(
                                 filtered.map(comp => ({ name: comp, value: comp }))
                         );
@@ -149,29 +148,27 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                 // Handle Ping button
                 if (interaction.customId.startsWith('ctaping')) {
                     const [action, eventId] = interaction.customId.split('|');
-                    let response = '';
                     const event = await CTAManager.getEventAndMessage(interaction, eventId, guildId);
                     if (!event.success) {
                         return await interaction.reply({ content: event.error, ephemeral: true });
                     }
-                    if (userId != event.value.eventDetails.user_id && !hasRole) {
+                    let {eventDetails, eventMessage} = event.value;
+                    if (userId != eventDetails.user_id && !hasRole) {
                         return await interaction.reply({ content: `Cancelling events is allowed only to the organizer of the event or CTABot Admin role`, ephemeral: true });
                     }
-                    const participants = await CTAManager.getParticipants(eventId, guildId);
-                    let attention = `<@${userId}> calls to arms! 🔔 `;
-                    if (participants.value.length > 0) {
-                        for ( const participant of participants.value ) {
-                            if (participant.user_id != null ) {
-                                response += `<@${participant.user_id}> `;
-                            }
-                        }
-                        
-                        if (response.length > 0) {
-                            response = attention + response;
-                            return await interaction.reply({ content: response});
-                        } else {
-                            return await interaction.reply({ content: 'No one signed up, there is no one to ping 😢', ephemeral: true});
-                        } 
+
+                    const assignedUsers = eventDetails.rolesjson
+                        .filter(role => role.user_id !== null)
+                        .map(role => `<@${role.user_id}>`)
+                        .join(", ");
+                    
+                    const result = assignedUsers.length > 0 
+                        ? `<@${userId}> calls to arms! 🔔 ${assignedUsers}` 
+                        : false;
+                    if (!assignedUsers) {
+                        return await interaction.reply({ content: "No one signed up, there is no one to ping 😢", ephemeral: true});
+                    } else {
+                        return await interaction.reply({ content: result});
                     }
                 }
                 // Handle Leave Button
@@ -367,28 +364,21 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                     if (!event.success) {
                         return await interaction.reply({ content: event.error, ephemeral: true });
                     } 
-                    if (userId != event.value.eventDetails.user_id && !hasRole) {
+                    let {eventDetails, eventMessage} = event.value; 
+                    if (userId != eventDetails.user_id && !hasRole) {
                         return await interaction.reply({ content: `Freeing roles in the event allowed only to the organizer of the event or CTABot Admin role`, ephemeral: true });
                     }
                     let removedParticipants = ''; 
                     for ( const role of roles) {
-                        const removed = await CTAManager.removeParticipantByRoleID(role, eventId, guildId);
-                        if (removed.success && removed.value.length > 0) {
-                            removedParticipants += `<@${removed.value[0].user_id}> removed from role ${role}.\n`;
+                        const removed = await CTAManager.removeParticipantByRoleID(role, eventDetails);
+                        if (removed.success) {
+                            eventDetails = removed.value.eventDetails;
+                            removedParticipants += `<@${removed.value.removedUser}> removed from role ${role}.\n`;
                         }
                     }
                     let embed; 
                     if ( removedParticipants.length > 0 ) {
-                        const eventAfter = await CTAManager.getEventAndMessage(interaction, eventId, guildId);
-                        if (!eventAfter.success) {
-                            return await interaction.reply({ content: eventAfter.error, ephemeral: true });
-                        }
-                        const eventMessage = eventAfter.value.eventMessage;
-                        const participants = await CTAManager.getParticipants(eventId, guildId);
-                        if (!participants.success) {
-                            return await interaction.reply({ content: participants.error, ephemeral: true });
-                        }
-                        embed = CTAManager.buildEventMessage(participants.value, eventAfter.value.eventDetails)
+                        embed = CTAManager.buildEventMessage(eventDetails)
                         await eventMessage.edit({ embeds: [embed] });
                         return await interaction.reply({ content: removedParticipants, ephemeral: true });
                     }
@@ -471,16 +461,14 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                     if (userId != eventDetails.user_id && !hasRole) {
                         return await interaction.reply({ content: `Freeing roles in the event allowed only to the organizer of the event or CTABot Admin role`, ephemeral: true });
                     }
-                    const participants = await CTAManager.getParticipants(eventId, guildId);
-                    if (!participants.success) {
-                        return await interaction.reply({content: participants.error, ephemeral: true});
-                    }
+
                     const removedUsers = [];
-                    for (const participant of participants.value) {
+                    for (const participant of eventDetails.rolesjson) {
                         if (participant.user_id !== null ) {
                             if (!userList.has(participant.user_id)) {
-                                const response = await CTAManager.removeParticipantByUserID(participant.user_id, eventId, guildId);
-                                if (response.success && response.value.length > 0) {
+                                const response = await CTAManager.removeParticipantByUserID(participant.user_id,eventDetails);
+                                if (response.success) {
+                                    eventDetails = response.value;
                                     removedUsers.push(participant.user_id);
                                 } 
                             }
@@ -489,12 +477,7 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                     if (removedUsers.length === 0 ) {
                         return interaction.reply({ content: `Wow! Everyone is in comms!`, ephemeral: true });
                     } 
-                    const currentParticipants = await CTAManager.getParticipants(eventId, guildId); 
-                    if (!currentParticipants.success) {
-                        return await interaction.reply({content: currentParticipants.error, ephemeral: true});
-                    }
-                    
-                    const embed = CTAManager.buildEventMessage(currentParticipants.value, eventDetails);
+                    const embed = CTAManager.buildEventMessage(eventDetails);
                     await eventMessage.edit({ embeds: [embed] });
                     await interaction.reply({ content: `Users ${removedUsers.map(user => `<@${user}>`).join(', ')} have been cleared.`, ephemeral: true });
                 }
@@ -517,12 +500,8 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                     if (userId != eventDetails.user_id && !hasRole) {
                         return await interaction.reply({ content: `Pinging missing roles in the event is allowed only to the organizer of the event or CTABot Admin role`, ephemeral: true });
                     }
-                    const participants = await CTAManager.getParticipants(eventId, guildId);
-                    if (!participants.success) {
-                        return await interaction.reply({content: participants.error, ephemeral: true});
-                    }
                     const missingUsers = [];
-                    for (const participant of participants.value) {
+                    for (const participant of eventDetails.rolesjson) {
                         if (participant.user_id !== null ) {
                             if (!userList.has(participant.user_id)) {
                                 missingUsers.push(participant.user_id);
@@ -532,13 +511,7 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                     if (missingUsers.length === 0 ) {
                         return interaction.reply({ content: `Wow! Everyone is in comms!`, ephemeral: true });
                     } 
-                    //const currentParticipants = await CTAManager.getParticipants(eventId, guildId); 
-                    //if (!currentParticipants.success) {
-                    //    return await interaction.reply({content: currentParticipants.error, ephemeral: true});
-                    //}
-                    
-                    //const embed = CTAManager.buildEventMessage(currentParticipants.value, eventDetails);
-                    //await eventMessage.edit({ embeds: [embed] });
+
                     await interaction.reply({ content: `${missingUsers.map(user => `<@${user}>`).join(', ')} are missing.`});
                 }
 
@@ -588,7 +561,6 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                             //}
                             eventDetails.time_utc = time; 
                         }
-                        const participants = await CTAManager.getParticipants(eventId, guildId);
                         try {
                             const insertEvent = `
                                 UPDATE events
@@ -600,7 +572,7 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                             logger.logWithContext('error', `Error when inserting event ${eventId} to the database`, error);
                             return {success: false, error: `Internal system error.`} 
                         }
-                        const embed = CTAManager.buildEventMessage(participants.value, eventDetails); 
+                        const embed = CTAManager.buildEventMessage(eventDetails); 
                         await eventMessage.edit({ embeds: [embed] });
                         return await interaction.reply({content: `Event ${eventId} updated!`, ephemeral: true});
                     } else {
@@ -664,15 +636,16 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                 // Handle the /listcomps command
                 if (subCommand === 'listcomps') {
                     const compName = options.getString('comp');
-                    let result = '';                
+                    let result = [];                
                     // Check if a composition name is provided
                     if (compName) {
                         result = await CompsManager.getCompRoles(compName, guildId);
+                        return await interaction.reply({content: `Roles in composition: \n${result.value.map(role => role.role_name).join(";")}`, ephemeral: true});
                     } else {
                         result = await CompsManager.getAllComps(guildId); 
+                        return await interaction.reply({content: `Available compositions: \n${result.value.map(comp => comp.comp_name).join(" \n")}`, ephemeral: true});
                     }
-                    // Send the response to the user
-                    return await interaction.reply({content: result.payload, ephemeral: true});
+
                 }
                 
                 if (subCommand === 'help') {

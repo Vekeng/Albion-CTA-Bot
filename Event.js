@@ -121,6 +121,7 @@ export async function leaveCTA(userId, eventDetails) {
  */
 export async function removeParticipantByUserID(userId, eventDetails) {
     let removed = false;
+    console.log(eventDetails);
     eventDetails.rolesjson = eventDetails.rolesjson.map(role => {
         if (role.user_id === userId) {
             removed = true;
@@ -168,14 +169,29 @@ export async function removeParticipantByUserID(userId, eventDetails) {
  *     console.error(result.error);
  * }
  */
-export async function removeParticipantByRoleID(roleId, eventId, guildId) {
+export async function removeParticipantByRoleID(roleId, eventDetails) {
+    let removedUser;
+    eventDetails.rolesjson = eventDetails.rolesjson.map(role => {
+        if (role.role_id === parseInt(roleId)) {
+            removedUser = role.user_id;
+            return { ...role, user_id: null }; // Remove the user from other roles
+        }
+        return role;
+    });
+    if (!removedUser) {
+        return {success: false, error: `<@${roleId}> is free`};
+    }
     try {
-        const removeParticipant = 'DELETE FROM participants WHERE role_id=$1 AND event_id=$2 AND discord_id=$3 RETURNING user_id';
-        const participant = await pgClient.query(removeParticipant, [roleId,eventId,guildId]); 
-        return {success: true, value: participant.rows};
-    } catch (error) {
-        logger.logWithContext('error', `Error removing participant ${roleId} for event ID ${eventId}: ${error}`)
-        return {success: false, error: `Internal system error`}; 
+        const updateEvent = `
+            UPDATE events
+            SET rolesjson = $1
+            WHERE event_id = $2 AND discord_id = $3;
+        `;
+        await pgClient.query(updateEvent, [JSON.stringify(eventDetails.rolesjson), eventDetails.event_id, eventDetails.discord_id]);
+        return {success: true, value: {eventDetails: eventDetails, removedUser: removedUser}}; 
+    } catch (error){
+        logger.logWithContext('error', `Error when inserting event ${eventId} to the database, ${error}`);
+        return {success: false, error: `Internal system error.`} 
     }
 }
 
@@ -502,68 +518,6 @@ export function isValidSnowflake(value) {
     } else {
         logger.logWithContext('error', `Not a valid snowflake: ${value}`);
         return false;
-    }
-}
-
-/**
- * Fetches participants and associated roles for a given event.
- *
- * This function queries the database to retrieve the roles and participants associated 
- * with an event. It returns information about roles and participants, including role IDs, 
- * role names, party assignments, and user IDs of participants.
- *
- * @async
- * @function getParticipants
- * @param {string} eventId - The unique identifier of the event.
- * @param {string} guildId - The unique identifier of the Discord guild.
- * @returns {Promise<Object>} An object indicating the result of the operation.
- * - If successful, returns `{ success: true, value: Array }`, where `value` is an array 
- *   of objects containing participant and role details.
- * - If an error occurs, returns `{ success: false, error: string }` with an error message.
- *
- * @example
- * // Example usage:
- * const result = await getParticipants('event123', 'guild456');
- * if (result.success) {
- *     console.log(result.value); // Array of participants and roles
- * } else {
- *     console.error(result.error); // Error message
- * }
- */
-export async function getParticipants(eventId, guildId) {
-    const getParticipants = `
-        SELECT 
-            r.role_id,
-            r.role_name,
-            r.party,
-            p.user_id
-        FROM
-            roles r
-        JOIN
-            events e
-        ON
-            r.comp_name = e.comp_name
-            AND r.discord_id = e.discord_id
-        LEFT JOIN
-            participants p
-        ON
-            p.role_id = r.role_id
-            AND p.discord_id = r.discord_id
-            AND p.comp_name = r.comp_name
-            AND p.event_id = e.event_id
-        WHERE
-            e.event_id = $1
-        AND
-            e.discord_id = $2
-        ORDER BY r.role_id;
-    `;
-    let participants;
-    try {
-        participants = await pgClient.query(getParticipants, [eventId, guildId]);
-        return { success: true, value: participants.rows}; 
-    } catch (error) {
-        logger.logWithContext('error', `Error fetching participants for event ID ${eventId}`, error)
-        return {success: false, error: `Internal system error`}
     }
 }
 

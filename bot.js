@@ -697,6 +697,9 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                     // Check if a composition name is provided
                     if (compName) {
                         result = await CompsManager.getCompRoles(compName, guildId);
+                        if (!result.success) {
+                            return await interaction.reply({content: result.error, ephemeral: true});
+                        }
                         return await interaction.reply({content: `Roles in composition: \n${result.value.map(role => role.role_name).join(";")}`, ephemeral: true});
                     } else {
                         result = await CompsManager.getAllComps(guildId); 

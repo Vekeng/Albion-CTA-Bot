@@ -121,7 +121,6 @@ export async function leaveCTA(userId, eventDetails) {
  */
 export async function removeParticipantByUserID(userId, eventDetails) {
     let removed = false;
-    console.log(eventDetails);
     eventDetails.rolesjson = eventDetails.rolesjson.map(role => {
         if (role.user_id === userId) {
             removed = true;

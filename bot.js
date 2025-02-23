@@ -442,7 +442,7 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                                         {
                                             if (text.includes('Overwhelming')) {
                                                 objective = '🟡 Golden core';
-                                            } else if (text.includes('Rare')) {
+                                            } else if (text.includes('Substantial')) {
                                                 objective = '🔵 Blue core'; 
                                             } else if (text.includes('Moderate')) {
                                                 objective = '🟢 Green core'; 
@@ -456,7 +456,7 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                                         if (text.includes('Strength')) {
                                             if (text.includes('Overwhelming')) {
                                                 objective = '🟡 Golden Vortex';
-                                            } else if (text.includes('Rare')) {
+                                            } else if (text.includes('Substantial')) {
                                                 objective = '🔵 Blue Vortex'; 
                                             } else if (text.includes('Moderate')) {
                                                 objective = '🟢 Green Vortex'; 

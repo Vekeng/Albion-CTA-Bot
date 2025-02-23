@@ -6,6 +6,7 @@ import { Routes } from 'discord-api-types/v9';
 // Core modules
 import path from 'path';
 import fs from 'fs';
+import sharp from 'sharp';
 
 // Third-party modules
 import axios from 'axios';
@@ -16,6 +17,7 @@ import dotenv from 'dotenv';
 import { connectDb, disconnectDb, pgClient } from './postgres.js';
 import { logger } from './winston.js';
 import { commands } from './commands.js';
+import { zones } from './zones.js';  // Import the array
 import * as CTAManager from './Event.js';
 import * as CompsManager from './Comps.js';
 import { 
@@ -25,6 +27,9 @@ if (process.env.BOTENV != "PRODUCTION") {
     // Load environment variables from .env.dev if not production
     dotenv.config({path: '.env.dev'});
 }
+
+
+
 
 const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
 
@@ -397,9 +402,24 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
 
                         // Save the image temporarily
                         fs.writeFileSync(imagePath, response.data);
+                        const processedImagePath = path.join(__dirname, 'processed_image.png');
 
+                        //const sharp = require('sharp');
+                        await sharp(imagePath)
+                            .resize({ width: 800 }) // Resize width to 800px, keep aspect ratio
+                            .grayscale() // Convert to grayscale
+                            .normalize()
+                            //.threshold(150)
+                            .modulate({ brightness: 1, contrast: 2 }) // Increase contrast
+                            .toFile(processedImagePath);
+
+                        
                         // Perform OCR on the image
-                        const result = await Tesseract.recognize(imagePath, 'eng');
+                        const result = await Tesseract.recognize(processedImagePath, 'eng', {
+                            //logger: m => console.log(m), // Logs OCR process
+                            tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789.:, ',
+                            psm: 11, // Assume a uniform block of text
+                        });
                         const text = result.data.text;
 
                         // Clean up temporary file
@@ -407,14 +427,50 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
 
                         // Send the extracted text back
                         if (text.trim()) {
-                            const allContent = ['Large Treasure Chest', 'Power Vortex', 'A \\w+ with plenty of Tier \\d\\.\\d \\w+', 'Power Anomaly'];
+                            const allContent = ['Small Treasure Chest', 'Medium Treasure Chest', 'Large Treasure Chest', 'Power Vortex', 'A \\w+ with plenty of Tier \\d\\.\\d \\w+', 'Power Anomaly'];
                             let message; // Default message
+                            let zone; 
                             for (const keyword of allContent) {
                                 const contentRegex = new RegExp(keyword, 'i');
                                 if (contentRegex.test(text)) {
+                                    zone = zones.filter(word => text.includes(word));
                                     const result = extractKeywordAndTime(text.trim(), keyword);
-                                    const match = text.match(contentRegex);
-                                    message = `<@${userId}> has found ${match} is <t:${result}:R>!!!`;
+                                    let objective = text.match(contentRegex);
+                                    console.log(objective);
+                                    if (objective == 'Power Anomaly') {
+                                        if (text.includes('Strength'))
+                                        {
+                                            if (text.includes('Overwhelming')) {
+                                                objective = '🟡 Golden core';
+                                            } else if (text.includes('Rare')) {
+                                                objective = '🔵 Blue core'; 
+                                            } else if (text.includes('Moderate')) {
+                                                objective = '🟢 Green core'; 
+                                            } else {
+                                                objective = '🟣 Purple core';
+                                            }
+                                        }
+                                        
+                                    } 
+                                    if (objective == 'Power Vortex') {
+                                        if (text.includes('Strength')) {
+                                            if (text.includes('Overwhelming')) {
+                                                objective = '🟡 Golden Vortex';
+                                            } else if (text.includes('Rare')) {
+                                                objective = '🔵 Blue Vortex'; 
+                                            } else if (text.includes('Moderate')) {
+                                                objective = '🟢 Green Vortex'; 
+                                            } else {
+                                                objective = '🟣 Purple Vortex';
+                                            }
+                                        }
+                                    }
+                                    if (zone.length > 0) {
+                                        message = `<@${userId}> has found ${objective} in ${zone} <t:${result}:R>!!!`;
+                                    } else {
+                                        message = `<@${userId}> has found ${objective} <t:${result}:R>!!!`;
+                                    }
+                                    
                                     break; // Exit the loop once a match is found
                                 } else {
                                     message = 'Unrecognized content'
@@ -422,7 +478,7 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                             }
                             const isSuccessful = message !== 'Unrecognized content';
                             if (message === 'Unrecognized content') {
-                                return interaction.editReply({content: 'Unrecognized content. Text recognition may fail if Albion uses non-native resolution. If you think it should be recognizable, send the screenshot to <@186362944022511616>', ephemeral: true});
+                                return interaction.editReply({files: [/*processedImagePath*/], content: 'Unrecognized content. Text recognition may fail if Albion uses non-native resolution. If you think it should be recognizable, send the screenshot to <@186362944022511616>', ephemeral: true});
                             } else {
                                 interaction.deleteReply();
                                 return interaction.followUp({content: message, files: [attachment], ephemeral: false});

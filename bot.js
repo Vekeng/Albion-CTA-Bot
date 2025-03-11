@@ -409,7 +409,7 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                             .resize({ width: 800 }) // Resize width to 800px, keep aspect ratio
                             .grayscale() // Convert to grayscale
                             .normalize()
-                            //.threshold(150)
+                            .threshold(120)
                             .modulate({ brightness: 1, contrast: 2 }) // Increase contrast
                             .toFile(processedImagePath);
 
@@ -478,7 +478,7 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                             }
                             const isSuccessful = message !== 'Unrecognized content';
                             if (message === 'Unrecognized content') {
-                                return interaction.editReply({files: [/*processedImagePath*/], content: 'Unrecognized content. Text recognition may fail if Albion uses non-native resolution. If you think it should be recognizable, send the screenshot to <@186362944022511616>', ephemeral: true});
+                                return interaction.editReply({files: [], content: 'Unrecognized content. Text recognition may fail if Albion uses non-native resolution. If you think it should be recognizable, send the screenshot to <@186362944022511616>', ephemeral: true});
                             } else {
                                 interaction.deleteReply();
                                 return interaction.followUp({content: message, files: [attachment], ephemeral: false});
@@ -644,9 +644,6 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                     if (!CTAManager.isValidDate(date)) {
                         return interaction.reply({content: 'Invalid date: date should be in DD.MM.YYYY format', ephemeral: true});
                     }
-                    //if (!isValidTime(time)) {
-                    //    return {success: false, error: 'Invalid time: time should be in HH:MM format'};
-                    //}
                     if (!await CompsManager.isValidComp(compName, guildId)) {
                         return interaction.reply({content: `Composition ${compName} doesn't exist`, ephemeral: true});
                     }

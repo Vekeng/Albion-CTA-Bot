@@ -332,9 +332,14 @@ export async function getEventAndMessage(interaction, eventId, guildId) {
  */
 export function buildEventMessage(eventDetails) {
     const participants = eventDetails.rolesjson;
+    let time = eventDetails.time_utc;
+    if (isValidTime(eventDetails.time_utc)) {
+        const discordTime = convertToDiscordTimestamp(eventDetails.date, eventDetails.time_utc);
+        time = `${eventDetails.time_utc} ${discordTime}`;
+    } 
     const embed = new EmbedBuilder()
         .setTitle(eventDetails.event_name)
-        .setDescription(`Date: **${eventDetails.date}**\nTime (UTC): **${eventDetails.time_utc}**`)
+        .setDescription(`Date: **${eventDetails.date}**\nTime (UTC): **${time}**`)
         .setColor('#0099ff');
     // Group roles by party
     const groupedRoles = participants.reduce((acc, { role_id, role_name, party, user_id }) => {
@@ -441,6 +446,20 @@ export function isValidSnowflake(value) {
         logger.logWithContext('error', `Not a valid snowflake: ${value}`);
         return false;
     }
+}
+
+export function convertToDiscordTimestamp(dateStr, timeStr) {
+    // Convert "DD.MM.YYYY HH:MM" to a proper Date object
+    const [day, month, year] = dateStr.split('.').map(Number);
+    const [hours, minutes] = timeStr.split(':').map(Number);
+    
+    // Months are zero-based in JavaScript Date (0 = January)
+    const unixTime = Date.UTC(year, month - 1, day, hours, minutes) / 1000;
+
+    // Convert to Unix timestamp (in seconds)
+    
+    return `<t:${unixTime}:R>`
+
 }
 
 export function isValidTime(time) {

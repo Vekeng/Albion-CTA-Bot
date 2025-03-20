@@ -45,7 +45,7 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
 
         // Start the bot after command registration
         const client = new Client({
-            intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent, GatewayIntentBits.GuildVoiceStates],
+            intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, /*GatewayIntentBits.MessageContent,*/ GatewayIntentBits.GuildVoiceStates],
         });
 
         // Defining CTABot Admin Role in discord
@@ -197,6 +197,7 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                 }
                 // Handle Join Button 
                 if (interaction.customId.startsWith('joinCTA')) {
+                    console.time('joinCTA');
                     const [action, eventId, compName] = interaction.customId.split('|');
                     const options = [];
                     const event = await CTAManager.getEventAndMessage(interaction, eventId, guildId);
@@ -223,7 +224,7 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                     .setOptions(options);
                     
                     const row = new ActionRowBuilder().addComponents(selectMenu);
-                    
+                    console.timeEnd('joinCTA');
                     await interaction.reply({
                         content: 'Please select a party:',
                         components: [row],
@@ -234,6 +235,7 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
             if (interaction.isStringSelectMenu()) {
                 logger.logWithContext('info',`Select menu interacted: ${interaction.customId}, selected value: ${interaction.values.join(", ")}`);
                 if (interaction.customId.startsWith('joinCTARole')) {
+                    console.time('joinCTARole');
                     const [action, eventId, compName, party] = interaction.customId.split('|');
                     const [roleId, roleName] = interaction.values[0].split('|');
                     const event = await CTAManager.getEventAndMessage(interaction, eventId, guildId); 
@@ -286,6 +288,7 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                     } else {
                         message = `Your role is: ${roleId}. ${roleName}`;
                     }
+                    console.timeEnd('joinCTARole');
                     // Update the original message
                     await eventMessage.edit({ embeds: [embed] });                    
                     // Inform about teh role change
@@ -298,6 +301,7 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                 }
                 // Handle menu creation to choose a role in the party
                 if (interaction.customId.startsWith('joinCTAParty')) {
+                    console.time('joinCTAParty');
                     const [action, eventId, compName] = interaction.customId.split('|');
                     const party = interaction.values[0];
                     const event = await CTAManager.getEventAndMessage(interaction, eventId, guildId); 
@@ -323,7 +327,7 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                     .setOptions(options);
                 
                     const row = new ActionRowBuilder().addComponents(selectMenu);
-                    
+                    console.timeEnd('joinCTAParty');
                     await interaction.update({
                         content: `Picked ${party}`,
                         components: [row],

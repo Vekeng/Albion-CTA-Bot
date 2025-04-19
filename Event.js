@@ -81,8 +81,7 @@ export async function createCTA(eventId, eventName, userId, guildId, compName, d
     embed.setFooter({ text: `Event ID: ${eventId}` });
     return { success: true, value: {
         embeds: [embed],
-        components: [actionRow],
-        ephemeral: false
+        components: [actionRow]
     }}; 
 }
 
@@ -368,7 +367,7 @@ export function buildEventMessage(eventDetails) {
         // Add the formatted roles list to the embed
         embed.addFields({ name: `⚔️ ${party}`, value: partyRoles, inline: true });
     }
-    embed.addFields({ name: 'Sponsor Me', value: '[PayPal](https://www.paypal.com/donate/?hosted_button_id=USFH3U33BMAAY)', inline: false });
+    embed.addFields({ name: '', value: '[☕ Buy me a coffee](https://buymeacoffee.com/groovygrims)', inline: false });
     embed.setFooter({text: `Event ID: ${eventDetails.event_id}`});
     return embed;
 }

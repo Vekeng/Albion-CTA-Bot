@@ -491,7 +491,7 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                                     //zone = zones.filter(word => text.includes(word));
                                     const result = extractKeywordAndTime(text.trim(), keyword);
                                     let objective = text.match(contentRegex);
-                                    console.log(objective);
+                                    console.log("Objective: " +  objective);
                                     if (objective == 'Power Anomaly') {
                                         if (power == 'Overwhelming') {
                                             objective = '🟡 Golden core';
@@ -505,13 +505,13 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                                     } 
                                     if (objective == 'Power Vortex') {
                                         if (power == 'Overwhelming') {
-                                            objective = '🟡 Golden core';
+                                            objective = '🟡 Golden vortex';
                                         } else if (power == 'Substantial') {
-                                            objective = '🔵 Blue core'; 
+                                            objective = '🔵 Blue vortex'; 
                                         } else if (power == 'Moderate') {
-                                            objective = '🟢 Green core'; 
+                                            objective = '🟢 Green vortex'; 
                                         } else {
-                                            objective = '🟣 Purple core';
+                                            objective = '🟣 Purple vortex';
                                         }
                                     } 
                                     if (zone && zone.length > 0) {

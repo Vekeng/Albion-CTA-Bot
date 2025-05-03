@@ -411,7 +411,7 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
 
                         //const sharp = require('sharp');
                         await sharp(imagePath)
-                            .resize({ width: 800 }) // Resize width to 800px, keep aspect ratio
+                            .resize({ width: 1600 }) // Resize width to 800px, keep aspect ratio
                             .grayscale() // Convert to grayscale
                             .normalize()
                             .threshold(120)
@@ -428,55 +428,85 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                         const text = result.data.text;
                         const words = text.split(' ').filter(Boolean);
 
-                        const powerWords = ['Moderate', 'Substantial', 'Rare', 'Overwhelming']
+                        const powerWords = ['strength moderate', 'strength substantial', 'strength rare', 'strength overwhelming', 'strength extraordinary', 'strength']
                         const powerFuse = new Fuse(powerWords, {
                             includeScore: true,
-                            threshold: 0.5, // Adjust as needed (lower = stricter match)
-                            minMatchCharLength: 4,
+                            threshold: 0.4, // Adjust as needed (lower = stricter match)
+                            minMatchCharLength: 5,
                             distance: 100,
                             ignoreLocation: true
                         });
 
                         const fuse = new Fuse(zones, {
                             includeScore: true,
-                            threshold: 0.8, // Adjust as needed (lower = stricter match)
+                            threshold: 0.3, // Adjust as needed (lower = stricter match)
                             minMatchCharLength: 5,
                             distance: 50,
                             ignoreLocation: true
                         });
 
                         const matchedWords = new Set();
-                        const matchedPower = new Set();
+                        //const matchedPower = new Set();
                         const cleanedText = text.replace(/[^\w\s]/g, ' ');  // Removes non-alphanumeric characters
-                        //const powerResult = powerFuse.search(cleanedText);
-                        //words.forEach((word) => {
-                            const zoneResult = fuse.search(cleanedText);
-                            console.log(cleanedText);
-                            const bestZoneMatch = zoneResult.length ? zoneResult[0] : null;
-                            console.log(bestZoneMatch ? `Best match: ${bestZoneMatch.item} (Score: ${bestZoneMatch.score})` : "No match found");
-                            //console.log(result[0]);
-
-                            const powerResult = powerFuse.search(cleanedText);
-                            const bestPowerMatch = powerResult.length ? powerResult[0] : null;
-                            console.log(bestPowerMatch ? `Best match: ${bestPowerMatch.item} (Score: ${bestPowerMatch.score})` : "No match found");
-                            //if (powerResult.length > 0 && powerResult[0].score < 0.3) {
-                                //matchedPower.add(powerResult[0].item);   
-                                //console.log(`Word: ${word}, Match: ${powerResult[0].item}, Score: ${powerResult[0].score}`)
-                            //}
-                        //});
-                        let zone; 
-                        let power; 
-
-                        if (matchedPower.size == 1) {
-                            power = [...matchedPower][0];
-                            console.log("Power: ",power);
+                        const textLines = cleanedText.split('\n');
+                        const cleanedTextLines = textLines
+                            .map(line =>
+                                line
+                                .trim()
+                                .replace(/\s+/g, ' ')                   // Normalize spaces
+                                .toLowerCase()
+                                .split(' ')                             // Split into words
+                                .filter(word => word.length >= 3)       // Remove short words
+                                .join(' ')                              // Join back into a line
+                            )
+                            .filter(line => line.length > 5);           // Optional: remove very short lines
+                        let bestMatch = null; 
+                        let bestPower = null;
+                        let zone = null; 
+                        let power = null;
+                        cleanedTextLines.forEach((line) => {
+                            console.log("Checking line: ", line);
+                            const powerResult = powerFuse.search(line); 
+                            if (powerResult.length > 0) {
+                                console.log(`Candidate power: ${powerResult[0].item}, Score: ${powerResult[0].score}`);
+                                const powerCandidate = {
+                                    originalLine: powerResult[0], 
+                                    matchedPower: powerResult[0].item,
+                                    score: powerResult[0].score
+                                }
+                                if (!bestPower || powerCandidate.score < bestPower.score) {
+                                    bestPower = powerCandidate; 
+                                }
+                            }
+                            const zoneResult = fuse.search(line);
+                            if (zoneResult.length > 0) {
+                                console.log(`Candidate zone: ${zoneResult[0].item}, Score: ${zoneResult[0].score}`);
+                                const candidate = {
+                                    originalLine: zoneResult[0], 
+                                    matchedZone: zoneResult[0].item,
+                                    score: zoneResult[0].score
+                                };
+                                console.log(candidate);
+                                if (!bestMatch || candidate.score < bestMatch.score) {
+                                    bestMatch = candidate; 
+                                }
+                            }
+                        })
+                        console.log("Debug ", bestMatch);
+                        console.log(bestMatch ? `Zone: ${bestMatch.matchedZone}` : "Zone: not found");
+                        console.log(bestPower ? `Power: ${bestPower.matchedPower}` : "Power: not found");
+                        if (bestMatch) {
+                            zone = bestMatch.matchedZone; 
+                        }
+                        if (bestPower) {
+                            power = bestPower.matchedPower;
                         }
 
-                        if (matchedWords.size == 1) {
-                            zone = [...matchedWords][0];
-                            console.log("Zone: ",zone);
-                        }
-
+                        //if (matchedWords.size == 1) {
+                        //    zone = [...matchedWords][0];
+                        //    console.log("Zone: ",zone);
+                        //}
+                        console.log("PowerDbug", power);
                         // Clean up temporary file
                         fs.unlinkSync(imagePath);
 
@@ -484,34 +514,37 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                         if (text.trim()) {
                             const allContent = ['Small Treasure Chest', 'Medium Treasure Chest', 'Large Treasure Chest', 'Power Vortex', 'A \\w+ with plenty of Tier \\d\\.\\d \\w+', 'Power Anomaly'];
                             let message; // Default message
-                            //let zone; 
                             for (const keyword of allContent) {
                                 const contentRegex = new RegExp(keyword, 'i');
                                 if (contentRegex.test(text)) {
-                                    //zone = zones.filter(word => text.includes(word));
                                     const result = extractKeywordAndTime(text.trim(), keyword);
                                     let objective = text.match(contentRegex);
                                     console.log("Objective: " +  objective);
+                                    console.log("Timestamp: " + result);
                                     if (objective == 'Power Anomaly') {
-                                        if (power == 'Overwhelming') {
+                                        if (power == 'strength overwhelming') {
                                             objective = '🟡 Golden core';
-                                        } else if (power == 'Substantial') {
+                                        } else if (power == 'strength substantial') {
                                             objective = '🔵 Blue core'; 
-                                        } else if (power == 'Moderate') {
+                                        } else if (power == 'strength moderate') {
                                             objective = '🟢 Green core'; 
-                                        } else {
+                                        } else if (power == 'strength') {
                                             objective = '🟣 Purple core';
+                                        } else {
+                                            objective = 'Power core';
                                         }
                                     } 
                                     if (objective == 'Power Vortex') {
-                                        if (power == 'Overwhelming') {
+                                        if (power == 'strength overwhelming') {
                                             objective = '🟡 Golden vortex';
-                                        } else if (power == 'Substantial') {
+                                        } else if (power == 'strength substential') {
                                             objective = '🔵 Blue vortex'; 
-                                        } else if (power == 'Moderate') {
+                                        } else if (power == 'strength moderate') {
                                             objective = '🟢 Green vortex'; 
+                                        } else if (power == 'strength') {
+                                            objective = '🟣 Purple vortex'; 
                                         } else {
-                                            objective = '🟣 Purple vortex';
+                                            objective = 'Power vortex';
                                         }
                                     } 
                                     if (zone && zone.length > 0) {

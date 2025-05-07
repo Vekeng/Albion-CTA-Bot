@@ -174,6 +174,12 @@ const commands = [
                 description: 'Composition name',
                 required: true,
                 autocomplete: true,
+            },
+            {
+                name: 'lock', 
+                type: 3, 
+                description: 'Number of minutes before the event starts when leaving is disabled', 
+                required: false
             }],
         }, 
         {

@@ -3,6 +3,7 @@ import { combineDateAndTime } from './functions.js';
 import { pgClient } from './postgres.js'
 import * as CompsManager from './Comps.js';
 import { ActionRowBuilder, ButtonBuilder, ButtonStyle, Client, GatewayIntentBits, Events, StringSelectMenuBuilder, PermissionFlagsBits, EmbedBuilder } from 'discord.js';
+import { truncate } from 'fs';
 
 /**
  * Creates a new Call to Arms (CTA) event.
@@ -31,7 +32,7 @@ import { ActionRowBuilder, ButtonBuilder, ButtonStyle, Client, GatewayIntentBits
  *     console.error('Error creating CTA:', result.error);
  * }
  */
-export async function createCTA(eventId, eventName, userId, guildId, compName, date, time) {
+export async function createCTA(eventId, eventName, userId, guildId, compName, date, time, lock) {
     let eventRoles;
     try {
         const rolesResult = await CompsManager.getCompRoles(compName, guildId); 
@@ -42,9 +43,9 @@ export async function createCTA(eventId, eventName, userId, guildId, compName, d
             user_id: null
         }));
         const jsonRoles = JSON.stringify(eventRoles);
-        const insertEvent = `INSERT INTO events (event_id, event_name, user_id, discord_id, comp_name, date, time_utc, rolesjson)
-                                VALUES ($1, $2, $3, $4, $5, $6, $7, $8);`
-        await pgClient.query(insertEvent, [eventId, eventName, userId, guildId, compName, date, time, jsonRoles]);
+        const insertEvent = `INSERT INTO events (event_id, event_name, user_id, discord_id, comp_name, date, time_utc, rolesjson, lock)
+                                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9);`
+        await pgClient.query(insertEvent, [eventId, eventName, userId, guildId, compName, date, time, jsonRoles, lock]);
     } catch (error){
         logger.logWithContext('error', `Error when inserting event ${eventId} to the database, ${error}`);
         return {success: false, error: `Internal system error.`} 
@@ -334,12 +335,17 @@ export function buildEventMessage(eventDetails) {
     let time = eventDetails.time_utc;
     if (isValidTime(eventDetails.time_utc)) {
         const discordTime = convertToDiscordTimestamp(eventDetails.date, eventDetails.time_utc);
-        time = `${eventDetails.time_utc} ${discordTime}`;
+        time = `${eventDetails.time_utc} <t:${discordTime}:R>`;
     } 
     const embed = new EmbedBuilder()
         .setTitle(eventDetails.event_name)
         .setDescription(`Date: **${eventDetails.date}**\nTime (UTC): **${time}**`)
         .setColor('#0099ff');
+    if (eventDetails.lock && eventDetails.lock > 0) {
+        const discordTime = convertToDiscordTimestamp(eventDetails.date, eventDetails.time_utc);
+        const locktime = discordTime - (eventDetails.lock * 60);
+        embed.addFields({ name: '', value: `🔒 <t:${locktime}:R>`, inline: false });
+    }
     // Group roles by party
     const groupedRoles = participants.reduce((acc, { role_id, role_name, party, user_id }) => {
         if (!acc[party]) acc[party] = []; // Create a new array for the party if it doesn't exist
@@ -448,6 +454,7 @@ export function isValidSnowflake(value) {
 }
 
 export function convertToDiscordTimestamp(dateStr, timeStr) {
+    console.log(dateStr, timeStr);
     // Convert "DD.MM.YYYY HH:MM" to a proper Date object
     const [day, month, year] = dateStr.split('.').map(Number);
     const [hours, minutes] = timeStr.split(':').map(Number);
@@ -456,8 +463,9 @@ export function convertToDiscordTimestamp(dateStr, timeStr) {
     const unixTime = Date.UTC(year, month - 1, day, hours, minutes) / 1000;
 
     // Convert to Unix timestamp (in seconds)
+    console.log(unixTime);
     
-    return `<t:${unixTime}:R>`
+    return unixTime;
 
 }
 
@@ -490,4 +498,17 @@ export function isValidDate(date) {
     }
 
     return true;
+}
+
+export function checkLock(date, time, lock) {
+    const event_time = convertToDiscordTimestamp(date, time); 
+    const lock_time = event_time - (lock * 60); 
+    const current_timestamp = Math.floor(Date.now() / 1000);
+    console.log("Current time: ", current_timestamp);
+    console.log("Lock time: ", lock_time);
+    console.log("Event time: ", event_time);
+    if (current_timestamp > lock_time) {
+        return true; 
+    }
+    return false; 
 }

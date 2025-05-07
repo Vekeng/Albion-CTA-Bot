@@ -189,6 +189,9 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                     } else {
                         return await interaction.reply({ content: event.error, flags: MessageFlags.Ephemeral });
                     }
+                    if (CTAManager.checkLock(eventDetails.date, eventDetails.time_utc, eventDetails.lock)) {
+                        return await interaction.reply({ content: "Event is locked, you can't leave", flags: MessageFlags.Ephemeral });
+                    }
                     const result = await CTAManager.leaveCTA(userId, eventDetails)
                     if (!result.success) {
                         return await interaction.reply({ content: result.error, flags: MessageFlags.Ephemeral });
@@ -710,6 +713,7 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                     const date = options.getString('date');
                     const time = options.getString('time');
                     const compName = options.getString('comp');
+                    const lock = options.getString('lock');
                     if (!eventName || !compName || !date || !time) {
                         return interaction.reply({content: 'Ivalid input: Event name, Date, Time and Comp name are required', flags: MessageFlags.Ephemeral});
                     }
@@ -722,9 +726,12 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                     if (!await CompsManager.isValidComp(compName, guildId)) {
                         return interaction.reply({content: `Composition ${compName} doesn't exist`, flags: MessageFlags.Ephemeral});
                     }
+                    if (lock && !CTAManager.isValidTime(time)) {
+                        return interaction.reply({content: `To enable locking, you need to provide time in HH:MM format`, flags: MessageFlags.Ephemeral});
+                    }
                     const eventMessage = await interaction.deferReply({ withResponse: true });
                     console.log(eventMessage.id);
-                    const cta = await CTAManager.createCTA(eventMessage.interaction.responseMessageId, eventName, userId, guildId, compName, date, time); 
+                    const cta = await CTAManager.createCTA(eventMessage.interaction.responseMessageId, eventName, userId, guildId, compName, date, time, lock); 
                     if ( cta.success ) {
                         interaction.editReply(cta.value);
                     } else {

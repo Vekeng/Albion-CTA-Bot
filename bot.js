@@ -426,7 +426,6 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                             psm: 11, // Assume a uniform block of text
                         });
                         const text = result.data.text;
-                        const words = text.split(' ').filter(Boolean);
 
                         const powerWords = ['strength moderate', 'strength substantial', 'strength rare', 'strength overwhelming', 'strength extraordinary', 'strength']
                         const powerFuse = new Fuse(powerWords, {
@@ -445,8 +444,6 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                             ignoreLocation: true
                         });
 
-                        const matchedWords = new Set();
-                        //const matchedPower = new Set();
                         const cleanedText = text.replace(/[^\w\s]/g, ' ');  // Removes non-alphanumeric characters
                         const textLines = cleanedText.split('\n');
                         const cleanedTextLines = textLines
@@ -464,6 +461,7 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                         let bestPower = null;
                         let zone = null; 
                         let power = null;
+                        console.log("OCR", cleanedTextLines);
                         cleanedTextLines.forEach((line) => {
                             console.log("Checking line: ", line);
                             const powerResult = powerFuse.search(line); 
@@ -501,11 +499,6 @@ const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);
                         if (bestPower) {
                             power = bestPower.matchedPower;
                         }
-
-                        //if (matchedWords.size == 1) {
-                        //    zone = [...matchedWords][0];
-                        //    console.log("Zone: ",zone);
-                        //}
                         console.log("PowerDbug", power);
                         // Clean up temporary file
                         fs.unlinkSync(imagePath);

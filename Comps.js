@@ -143,7 +143,7 @@ export async function deleteComp(compName, guildId, userId, hasRole) {
     try {
         await pgClient.query('BEGIN');
         // Delete roles associated with this composition
-        const deleteRoles = `DELETE FROM roles WHERE comp_name = (SELECT comp_name FROM compositions WHERE discord_id = $1 AND comp_name = $2);`;
+        const deleteRoles = `DELETE FROM roles WHERE discord_id = $1 AND comp_name = $2;`;
         await pgClient.query(deleteRoles, [guildId, compName]);
 
         // Delete the composition

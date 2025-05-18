@@ -9,6 +9,7 @@ import fs from 'fs';
 import sharp from 'sharp';
 import Fuse from 'fuse.js';
 
+
 // Third-party modules
 import axios from 'axios';
 import Tesseract from 'tesseract.js';
@@ -29,7 +30,18 @@ if (process.env.BOTENV != "PRODUCTION") {
     dotenv.config({path: '.env.dev'});
 }
 
+import express from 'express';
 
+const app = express();
+
+app.get('/', (req, res) => {
+  res.send('Hello world!');
+});
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log(`Listening on port ${PORT}`);
+});
 
 
 const rest = new REST({ version: '9' }).setToken(process.env.BOT_TOKEN);

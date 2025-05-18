@@ -44,7 +44,8 @@ CREATE TABLE public.events (
     discord_id bigint,
     comp_name character varying(255),
     date character varying(255),
-    time_utc character varying(255)
+    time_utc character varying(255),
+    lock bigint
 );
 
 

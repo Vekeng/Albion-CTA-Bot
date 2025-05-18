@@ -45,6 +45,7 @@ CREATE TABLE public.events (
     comp_name character varying(255),
     date character varying(255),
     time_utc character varying(255),
+    rolesjson jsonb,
     lock bigint
 );
 
